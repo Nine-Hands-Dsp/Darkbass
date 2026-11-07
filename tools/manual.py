@@ -18,7 +18,7 @@ from reportlab.pdfbase.ttfonts import TTFont
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SHOTS = sys.argv[1] if len(sys.argv) > 2 else None
 OUT = sys.argv[-1]
-VERSION = "1.0.0"
+VERSION = "1.0.1"
 import tempfile
 TMP = tempfile.mkdtemp()
 FONTS = os.path.join(ROOT, "assets", "fonts")
@@ -28,22 +28,26 @@ for n, f in (("Pop", "Poppins-Regular"), ("PopL", "Poppins-Light"), ("PopM", "Po
 ACC = colors.HexColor("#3F7FFF"); ACC_L = colors.HexColor("#7FA9FF")
 DARK = colors.HexColor("#141518"); GREY = colors.HexColor("#63666D"); LIGHT = colors.HexColor("#E8EEFB")
 
-# ---------- geometrie (Layout.h, repere 1240 x 928) ----------
+# ---------- geometrie (Layout.h, repere Layout.h) ----------
 LAY = open(os.path.join(ROOT, "Layout.h")).read()
 def pt(name): return [float(v) for v in re.search(name + r" \{ ([\d.]+)f, ([\d.]+)f", LAY).groups()]
 def pts(name): return [(float(a), float(b)) for a, b in re.findall(r"\{ ([\d.]+)f, ([\d.]+)f \}", LAY.split(name + "[")[1].split(";")[0])]
 KP, TP = pts("knobPos"), pts("togglePos")
 LEDL, LEDR, FSL, FSR = pt("ledL"), pt("ledR"), pt("fsL"), pt("fsR")
 PX0, PY0, PW, PH = [float(v) for v in re.search(r'boxRect \{ ([\d.]+)f, ([\d.]+)f, ([\d.]+)f, ([\d.]+)f', LAY).groups()]
-PR, JACK_Y = 40.0, PY0 + 0.40 * PH
+PR = 40.0
+FH = float(re.search(r'frameH = (\d+)', LAY).group(1))
+JACK_Y = float(re.search(r'jackY = ([\d.]+)f', LAY).group(1))
+def rect(name): return [float(v) for v in re.search(name + r" \{ ([\d.]+)f, ([\d.]+)f, ([\d.]+)f, ([\d.]+)f", LAY).groups()]
+SR, PRR = rect("statusRect"), rect("presetRect")
 
 ASSETS = os.path.join(ROOT, "tools", "manual_assets")
 NAMES = ["darkbass_annotated.png", "darkbass_toggles.png", "darkbass_leds.png", "darkbass_bar.png", "darkbass_cover_cutout.png"]
 if SHOTS:
     src = Image.open(os.path.join(SHOTS, "darkbass_100.png")).convert("RGB")
-    k = src.height / 928.0
+    k = src.height / FH
     marks = [(i + 1, *KP[i]) for i in range(8)] + [(9 + i, *TP[i]) for i in range(4)] + \
-            [(13, *LEDL), (14, *LEDR), (15, *FSL), (16, *FSR), (17, 620, 702), (18, 620, 788), (19, PX0 + PW + 22, JACK_Y + 78), (20, PX0 - 22, JACK_Y + 78)]
+            [(13, *LEDL), (14, *LEDR), (15, *FSL), (16, *FSR), (17, SR[0] + SR[2] / 2, SR[1] + SR[3] / 2), (18, PRR[0] + PRR[2] / 2, PRR[1] + PRR[3] / 2), (19, PX0 + PW + 22, JACK_Y + 78), (20, PX0 - 22, JACK_Y + 78)]
     off = {**{i: (-82, 0) for i in range(1, 9)}, **{i: (-62, 0) for i in range(9, 13)}, 13: (-48, 0), 14: (-48, 0), 15: (-88, 0), 16: (88, 0),
            17: (-262, -4), 18: (-218, 0), 19: (0, 0), 20: (0, 0)}
     ann = src.copy(); dr = ImageDraw.Draw(ann)
@@ -57,7 +61,7 @@ if SHOTS:
 
     def crop_u(path, box):
         im = Image.open(os.path.join(SHOTS, path)).convert("RGB")
-        kk = im.height / 928.0
+        kk = im.height / FH
         return im.crop(tuple(int(v * kk) for v in box))
     gap = 18
     def strip(ims, name):
@@ -70,12 +74,12 @@ if SHOTS:
     tog_img = os.path.join(TMP, NAMES[1]); tog.save(tog_img)
     lb = (LEDL[0] - 110, LEDL[1] - 40, LEDL[0] + 110, FSL[1] + 70)
     led_img = strip([crop_u("darkbass_bypass.png", lb), crop_u("darkbass_100.png", lb)], NAMES[2])
-    bar = crop_u("darkbass_status.png", (372, 655, 868, 818))
+    bar = crop_u("darkbass_status.png", (SR[0] - 16, SR[1] - 13, SR[0] + SR[2] + 16, PRR[1] + PRR[3] + 10))
     bar_img = os.path.join(TMP, NAMES[3]); bar.save(bar_img)
 
     # ---------- couverture : pedale detouree (boitier + jacks), reflet au sol, halo bleu tres doux ----------
     shot = Image.open(os.path.join(SHOTS, "darkbass_100.png")).convert("RGB")
-    kk = shot.height / 928.0
+    kk = shot.height / FH
     body = Image.new("L", shot.size, 0)
     ImageDraw.Draw(body).rounded_rectangle((PX0 * kk, PY0 * kk, (PX0 + PW) * kk, (PY0 + PH) * kk), radius=PR * kk, fill=255)
     jm = Image.new("L", shot.size, 0); jd = ImageDraw.Draw(jm)

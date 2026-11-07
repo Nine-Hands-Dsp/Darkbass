@@ -365,6 +365,8 @@ for side in (-1, 1):
     j, jw_u, jh_u = PC.jack_sprite(JACK_LEN, AS, side)
     jh, jw = j.shape[:2]
     x0 = (PX0 * AS - jw + 2) if side < 0 else ((PX0 + PW) * AS - 2)
+    if side < 0: JACK_OUTER_L = x0 / AS
+    else:        JACK_OUTER_R = (x0 + jw) / AS
     y0 = JACK_Y * AS - jh / 2
     # ombre portee du jack sur la surface (vers le bas a droite) + ombre de contact contre le boitier
     sh = np.zeros((H, W), np.float32)
@@ -373,6 +375,14 @@ for side in (-1, 1):
           + cv2.GaussianBlur(cv2.warpAffine(sh, np.float32([[1, 0, 2], [0, 1, 3]]), (W, H)), (0, 0), 2) * 0.35) * (1 - body)
     img *= (1 - np.clip(sh, 0, 0.8))[..., None]
     over(img, j, x0, y0)
+
+# cadrage final de l'image : 30 unites de fond autour de la pedale (depuis le bout des jacks sur les cotes)
+MARGIN = 30.0
+CX0, CX1 = int(math.floor(JACK_OUTER_L - MARGIN)), int(math.ceil(JACK_OUTER_R + MARGIN))
+CY0, CY1 = int(math.floor(PY0 - MARGIN)), int(math.ceil(PY0 + PH + MARGIN))
+FW, FH = CX1 - CX0, CY1 - CY0
+print('cadre', FW, 'x', FH, 'decalage', CX0, CY0)
+def crop2x(a): return a[CY0 * AS:CY1 * AS, CX0 * AS:CX1 * AS]
 
 # ------------------------------------------------------------------ 8. inverseurs 3 positions : photos d'inverseur NINE HANDS | DSP (tools/toggle_photo.py)
 #     haut / milieu (compose des deux photos, levier vu dans l'axe) / bas ; ombre portee vers le bas a droite
@@ -387,7 +397,7 @@ PREVIEW_TOG = tframes[1].astype(np.float32)
 
 # ------------------------------------------------------------------ 9. sauvegarde du fond
 bg8 = np.clip(img, 0, 255).astype(np.uint8)
-Image.fromarray(bg8).save(os.path.join(ROOT, 'background.jpg'), quality=94, subsampling=0)
+Image.fromarray(crop2x(bg8)).save(os.path.join(ROOT, 'background.jpg'), quality=94, subsampling=0)
 
 # ------------------------------------------------------------------ 10. facade eclairee par chaque LED bleue (calque alpha : seule la lumiere ajoutee)
 GR = 120.0
@@ -411,22 +421,28 @@ def glow(c, fn):
     return (x0p / AS, y0p / AS, size / AS, size / AS)
 GL = glow(LED_L, 'glow_l.png'); GRr = glow(LED_R, 'glow_r.png')
 
-# ------------------------------------------------------------------ 11. Layout.h
+# ------------------------------------------------------------------ 11. Layout.h (coordonnees dans le cadre recadre FW x FH)
 def f(v): return f"{v:.2f}f"
+def X(v): return f(v - CX0)
+def Y(v): return f(v - CY0)
+def PT(p): return "{ %s, %s }" % (X(p[0]), Y(p[1]))
+def RC(r): return "{ %s, %s, %s, %s }" % (X(r[0]), Y(r[1]), f(r[2]), f(r[3]))
 with open(os.path.join(ROOT, 'Layout.h'), 'w') as fo:
-    fo.write("// genere par tools/make_art.py - ne pas modifier a la main (repere 1240 x 928, fond 2x)\n#pragma once\n#include <juce_graphics/juce_graphics.h>\nnamespace layout\n{\n")
+    fo.write(f"// genere par tools/make_art.py - ne pas modifier a la main (repere {FW} x {FH}, fond 2x)\n#pragma once\n#include <juce_graphics/juce_graphics.h>\nnamespace layout\n{{\n")
+    fo.write(f"    constexpr int frameW = {FW}, frameH = {FH};   // 30 unites de fond autour de la pedale (bout des jacks sur les cotes)\n")
     fo.write("    // ordre : " + ", ".join(ORDER) + "\n")
-    fo.write("    const juce::Point<float> knobPos[8] = { " + ", ".join("{ %s, %s }" % (f(KNOBS[k][0]), f(KNOBS[k][1])) for k in ORDER) + " };\n")
+    fo.write("    const juce::Point<float> knobPos[8] = { " + ", ".join(PT(KNOBS[k][:2]) for k in ORDER) + " };\n")
     fo.write(f"    const float knobR = {f(KNOB_R)}, knobTopR = {f(KRIN)}, eqR = {f(EQ_R)}, eqTopR = {f(EQRIN)};\n")
     fo.write("    // inverseurs 3 positions : grunt, lo freq, hi freq, attack\n")
-    fo.write("    const juce::Point<float> togglePos[4] = { " + ", ".join("{ %s, %s }" % (f(t[0]), f(t[1])) for t in TOGGLES) + " };\n")
+    fo.write("    const juce::Point<float> togglePos[4] = { " + ", ".join(PT(t[:2]) for t in TOGGLES) + " };\n")
     fo.write(f"    const float toggleS = {f(TOG_S)};\n")
-    fo.write(f"    const juce::Point<float> ledL {{ {f(LED_L[0])}, {f(LED_L[1])} }}, ledR {{ {f(LED_R[0])}, {f(LED_R[1])} }}; const float ledS = {f(LS)};\n")
-    fo.write(f"    const juce::Rectangle<float> glowL {{ {f(GL[0])}, {f(GL[1])}, {f(GL[2])}, {f(GL[3])} }}, glowR {{ {f(GRr[0])}, {f(GRr[1])}, {f(GRr[2])}, {f(GRr[3])} }};\n")
-    fo.write(f"    const juce::Point<float> fsL {{ {f(FS_L[0])}, {f(FS_L[1])} }}, fsR {{ {f(FS_R[0])}, {f(FS_R[1])} }}; const float footR = {f(FS_BTN)}, fsS = {f(FS_W)};   // bouton / sprite\n")
-    fo.write(f"    const juce::Rectangle<float> statusRect {{ {f(388.0)}, {f(668.0)}, {f(464.0)}, {f(66.0)} }}, presetRect {{ {f(436.0)}, {f(768.0)}, {f(368.0)}, {f(40.0)} }};\n")
+    fo.write(f"    const juce::Point<float> ledL {PT(LED_L)}, ledR {PT(LED_R)}; const float ledS = {f(LS)};\n")
+    fo.write(f"    const juce::Rectangle<float> glowL {RC(GL)}, glowR {RC(GRr)};\n")
+    fo.write(f"    const juce::Point<float> fsL {PT(FS_L)}, fsR {PT(FS_R)}; const float footR = {f(FS_BTN)}, fsS = {f(FS_W)};   // bouton / sprite\n")
+    fo.write(f"    const juce::Rectangle<float> statusRect {RC((388.0, 668.0, 464.0, 66.0))}, presetRect {RC((436.0, 768.0, 368.0, 40.0))};\n")
     fo.write(f"    const float statusFont = {f(30.0)}, presetFont = {f(24.0)}, uiScale = 1.08f;\n")
-    fo.write(f"    const juce::Rectangle<float> boxRect {{ {f(PX0)}, {f(PY0)}, {f(PW)}, {f(PH)} }};   // boitier (notice)\n")
+    fo.write(f"    const juce::Rectangle<float> boxRect {RC((PX0, PY0, PW, PH))};   // boitier (notice)\n")
+    fo.write(f"    const float jackY = {Y(JACK_Y)}, jackOuterL = {X(JACK_OUTER_L)}, jackOuterR = {X(JACK_OUTER_R)};   // jacks (notice)\n")
     fo.write("}\n")
 
 # ------------------------------------------------------------------ 12. apercu (design/preview.png) : fond + leviers au milieu + LED allumees
@@ -439,5 +455,5 @@ for (c, g) in ((LED_L, 'glow_l.png'), (LED_R, 'glow_r.png')):
     over(prev, LDON, (c[0] - LS / 2) * AS, (c[1] - LS / 2) * AS)
     over(prev, FSREFL.astype(np.float32), ((FS_L if c == LED_L else FS_R)[0] - FS_W / 2) * AS, ((FS_L if c == LED_L else FS_R)[1] - FS_W / 2) * AS)
 os.makedirs(os.path.join(ROOT, 'design'), exist_ok=True)
-Image.fromarray(np.clip(prev, 0, 255).astype(np.uint8)).resize((1240, 928), Image.LANCZOS).save(os.path.join(ROOT, 'design', 'preview.png'))
+Image.fromarray(np.clip(crop2x(prev), 0, 255).astype(np.uint8)).resize((FW, FH), Image.LANCZOS).save(os.path.join(ROOT, 'design', 'preview.png'))
 print('ok')

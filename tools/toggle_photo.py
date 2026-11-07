@@ -2,6 +2,7 @@
 Inverseur a levier NINE HANDS | DSP : photos de reference fournies par l'utilisateur (nov. 2026), a utiliser sur toutes les pedales.
   assets/kit/toggle_photo_haut.png  levier en haut   (3840 x 2160, fond transparent)
   assets/kit/toggle_photo_bas.png   levier en bas    (meme cadrage, meme lumiere en haut a gauche)
+  assets/kit/toggle_photo_milieu.png levier au milieu (dresse, vu dans l'axe), 1254 x 1254 : utilisee pour la position du milieu
 Position du milieu (inverseur 3 positions, ou image intermediaire de bascule d'un inverseur 2 positions) :
 composee a partir des deux photos, jamais par miroir : moitie haute de la photo « bas » + moitie basse de la photo
 « haut » (le levier n'y passe pas), puis le bout arrondi du levier (pris sur la photo « haut ») pose au centre,
@@ -111,9 +112,13 @@ def _sprite(src, c, washer_r_units, size_units, AS):
 def frames(washer_r_units=22.0, size_units=100.0, AS=2):
     up, dn = _load('toggle_photo_haut.png'), _load('toggle_photo_bas.png')
     cu, cd = _washer(up), _washer(dn)
-    mid = _middle(up, dn, cu, cd)
+    if os.path.exists(os.path.join(KIT, 'toggle_photo_milieu.png')):
+        # position du milieu : photo fournie par l'utilisateur (levier dresse, vu dans l'axe)
+        mid = _load('toggle_photo_milieu.png'); cm = _washer(mid)
+    else:
+        mid = _middle(up, dn, cu, cd); cm = cu
     return [_sprite(up, cu, washer_r_units, size_units, AS),
-            _sprite(mid, cu, washer_r_units, size_units, AS),
+            _sprite(mid, cm, washer_r_units, size_units, AS),
             _sprite(dn, cd, washer_r_units, size_units, AS)]
 
 

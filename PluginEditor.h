@@ -2,6 +2,7 @@
 
 #include "PluginProcessor.h"
 #include <juce_gui_basics/juce_gui_basics.h>
+#include "Layout.h"
 
 //==============================================================================
 // Potards (photo fournie par l'utilisateur, dans le fond : reflets fixes) ; seul le repere blanc peint tourne.
@@ -85,8 +86,8 @@ public:
     void mouseMove (const juce::MouseEvent&) override;
     void mouseExit (const juce::MouseEvent&) override;
 
-    // repere de reference (fond 2x = 2480 x 1856) ; tailles de fenetre comme Ring Think (format double)
-    static constexpr int baseW = 1240, baseH = 928;
+    // repere de reference (Layout.h, fond 2x) ; hauteurs de fenetre comme Ring Think (format double)
+    static constexpr int baseW = layout::frameW, baseH = layout::frameH;
     static constexpr int defaultH = 495;             // 661 x 495 : ouverture par defaut = taille minimale
     static constexpr int refH = 743;                 // « 100 % » = 993 x 743 (comme Ring Think)
     static constexpr int maxH = 1123;

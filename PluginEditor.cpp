@@ -7,7 +7,7 @@ using namespace juce;
 
 namespace
 {
-    // repere 1240 x 928 (fond 2480 x 1856), positions generees par tools/make_art.py dans Layout.h
+    // repere layout::frameW x frameH (fond 2x), positions generees par tools/make_art.py dans Layout.h
     const Rectangle<float> statusRect = layout::statusRect;
     const Rectangle<float> presetRect = layout::presetRect;
 
