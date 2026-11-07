@@ -13,7 +13,7 @@ namespace layout
     const juce::Point<float> ledL { 214.60f, 644.00f }, ledR { 973.40f, 644.00f }; const float ledS = 35.75f;
     const juce::Rectangle<float> glowL { 94.50f, 524.00f, 240.00f, 240.00f }, glowR { 853.50f, 524.00f, 240.00f, 240.00f };
     const juce::Point<float> fsL { 214.60f, 764.00f }, fsR { 973.40f, 764.00f }; const float footR = 37.88f, fsS = 190.00f;   // bouton / sprite
-    const juce::Rectangle<float> statusRect { 396.00f, 652.50f, 396.00f, 83.50f }, presetRect { 410.00f, 742.00f, 368.00f, 40.00f };
+    const juce::Rectangle<float> statusRect { 396.00f, 640.50f, 396.00f, 83.50f }, presetRect { 410.00f, 742.00f, 368.00f, 40.00f };
     const float statusFont = 30.00f, presetFont = 24.00f, uiScale = 1.08f;
     const juce::Rectangle<float> boxRect { 52.00f, 30.00f, 1084.00f, 816.00f };   // boitier (notice)
     const float jackY = 356.40f, jackOuterL = 30.00f, jackOuterR = 1158.00f;   // jacks (notice)

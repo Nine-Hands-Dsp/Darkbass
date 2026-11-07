@@ -172,7 +172,7 @@ spaced_rot(PX0 + PW - 30, JACK_Y, 'IN', f_tog, 2.0)
 # logo DARKBASS fourni par l'utilisateur (assets/darkbass_logo_blanc.svg : nom, filet, « BASS PREAMP / OVERDRIVE »),
 # meme largeur que la barre de presets juste en dessous et centre sur elle ; serigraphie blanche comme le reste
 PRESET_BAR = (436.0, 768.0, 368.0, 40.0)                 # x, y, largeur, hauteur (repere avant recadrage)
-LOGO_GAP = 14.0
+LOGO_GAP = 26.0
 import subprocess, io
 _lw = int(round(PRESET_BAR[2] * K))
 _png = subprocess.run(['rsvg-convert', '-w', str(_lw), os.path.join(ROOT, 'assets', 'darkbass_logo_blanc.svg')], capture_output=True, check=True).stdout
