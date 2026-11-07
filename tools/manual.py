@@ -18,7 +18,7 @@ from reportlab.pdfbase.ttfonts import TTFont
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SHOTS = sys.argv[1] if len(sys.argv) > 2 else None
 OUT = sys.argv[-1]
-VERSION = "1.0.1"
+VERSION = "1.0.2"
 import tempfile
 TMP = tempfile.mkdtemp()
 FONTS = os.path.join(ROOT, "assets", "fonts")

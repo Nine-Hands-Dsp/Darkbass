@@ -169,11 +169,17 @@ def spaced_rot(cx, cy, txt, font, track):
 spaced_rot(PX0 + 30, JACK_Y, 'OUT', f_tog, 2.0)
 spaced_rot(PX0 + PW - 30, JACK_Y, 'IN', f_tog, 2.0)
 # nom du plugin, au centre entre les footswitchs
-TITLE_C = (620.0, 702.0)
-spaced(TITLE_C[0], TITLE_C[1], 'DARKBASS', ImageFont.truetype(FONT_BOLD, int(64 * K)), 14.0)
-spaced(TITLE_C[0], TITLE_C[1] + 46, 'BASS PREAMP  /  OVERDRIVE', ImageFont.truetype(FONT_LIGHT, int(15 * K)), 6.0)
-# filet fin sous le titre
-dr.rectangle(((TITLE_C[0] - 150) * K, (TITLE_C[1] + 31) * K, (TITLE_C[0] + 150) * K, (TITLE_C[1] + 32.2) * K), fill=255)
+# logo DARKBASS fourni par l'utilisateur (assets/darkbass_logo_blanc.svg : nom, filet, « BASS PREAMP / OVERDRIVE »),
+# meme largeur que la barre de presets juste en dessous et centre sur elle ; serigraphie blanche comme le reste
+PRESET_BAR = (436.0, 768.0, 368.0, 40.0)                 # x, y, largeur, hauteur (repere avant recadrage)
+LOGO_GAP = 14.0
+import subprocess, io
+_lw = int(round(PRESET_BAR[2] * K))
+_png = subprocess.run(['rsvg-convert', '-w', str(_lw), os.path.join(ROOT, 'assets', 'darkbass_logo_blanc.svg')], capture_output=True, check=True).stdout
+_dl = Image.open(io.BytesIO(_png)).convert('RGBA')
+TITLE_W, TITLE_H = PRESET_BAR[2], PRESET_BAR[2] * _dl.height / _dl.width
+TITLE_X0, TITLE_Y0 = PRESET_BAR[0], PRESET_BAR[1] - LOGO_GAP - TITLE_H
+ink_im.paste(255, (int(round(TITLE_X0 * K)), int(round(TITLE_Y0 * K))), _dl.split()[3])
 
 ink = cv2.resize(np.asarray(ink_im, np.float32) / 255.0, (W, H), interpolation=cv2.INTER_AREA)
 # serigraphie : micro-manques de l'encre, tres legers
@@ -439,7 +445,7 @@ with open(os.path.join(ROOT, 'Layout.h'), 'w') as fo:
     fo.write(f"    const juce::Point<float> ledL {PT(LED_L)}, ledR {PT(LED_R)}; const float ledS = {f(LS)};\n")
     fo.write(f"    const juce::Rectangle<float> glowL {RC(GL)}, glowR {RC(GRr)};\n")
     fo.write(f"    const juce::Point<float> fsL {PT(FS_L)}, fsR {PT(FS_R)}; const float footR = {f(FS_BTN)}, fsS = {f(FS_W)};   // bouton / sprite\n")
-    fo.write(f"    const juce::Rectangle<float> statusRect {RC((388.0, 668.0, 464.0, 66.0))}, presetRect {RC((436.0, 768.0, 368.0, 40.0))};\n")
+    fo.write(f"    const juce::Rectangle<float> statusRect {RC((TITLE_X0 - 14, TITLE_Y0 - 10, TITLE_W + 28, TITLE_H + 18))}, presetRect {RC(PRESET_BAR)};\n")
     fo.write(f"    const float statusFont = {f(30.0)}, presetFont = {f(24.0)}, uiScale = 1.08f;\n")
     fo.write(f"    const juce::Rectangle<float> boxRect {RC((PX0, PY0, PW, PH))};   // boitier (notice)\n")
     fo.write(f"    const float jackY = {Y(JACK_Y)}, jackOuterL = {X(JACK_OUTER_L)}, jackOuterR = {X(JACK_OUTER_R)};   // jacks (notice)\n")

@@ -497,7 +497,7 @@ void DarkbassAudioProcessorEditor::drawStatus (Graphics& g)
 {
     const float a = statusAlpha;
     if (a <= 0.0f) return;
-    g.setColour (Colour (0xff0a0a0c).withAlpha (0.97f * a));
+    g.setColour (Colour (0xff0a0a0c).withAlpha (a));
     g.fillRoundedRectangle (statusRect, 10.0f);
     g.setColour (accent.withAlpha (0.55f * a));
     g.drawRoundedRectangle (statusRect.reduced (0.75f), 10.0f, 1.4f);
