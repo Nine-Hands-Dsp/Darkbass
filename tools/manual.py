@@ -397,7 +397,7 @@ def section(lang):
     for h, x in t["inst"]: f.append(P(h, "h2")); f.append(P(x))
     f.append(PageBreak())
     f.append(P(t["ov_t"], "h1"))
-    f.append(img(annotated, W))
+    f.append(img(annotated, W * 0.84))
     f.append(Spacer(1, 3 * mm))
     f.append(table([t["ov_hdr"]] + [[str(i + 1), a, b] for i, (a, b) in enumerate(t["ov"])], [10 * mm, 40 * mm, W - 50 * mm]))
     f.append(PageBreak())
@@ -413,7 +413,7 @@ def section(lang):
     wt.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "TOP"), ("LEFTPADDING", (0, 0), (0, 0), 0)]))
     f.append(wt)
     f.append(P(t["cab_t"], "h2")); f.append(P(t["cab"]))
-    f.append(CondPageBreak(150 * mm))
+    f.append(CondPageBreak(205 * mm))
     f.append(P(t["pre_t"], "h1")); f += [P(x) for x in t["pre"]]
     rows = [t["fac_hdr"]]
     for i, (n, ma, bl, lv, dr_, ba, lo, hi, tr, g, lf, hf, a, d) in enumerate(FACTORY):
