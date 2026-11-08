@@ -18,7 +18,7 @@ from reportlab.pdfbase.ttfonts import TTFont
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SHOTS = sys.argv[1] if len(sys.argv) > 2 else None
 OUT = sys.argv[-1]
-VERSION = "1.1.1"
+VERSION = "1.1.2"
 import tempfile
 TMP = tempfile.mkdtemp()
 FONTS = os.path.join(ROOT, "assets", "fonts")
@@ -273,7 +273,7 @@ T = {
  fac_hdr=["#", "Preset", "Master / Blend / Level / Drive", "Bass / Lo / Hi / Treble", "Switches", "Description"],
  sw=lambda g, lo, hi, a, d: f"grunt {GRU[g]}, {LOF[lo]}, {HIF[hi]}, attack {ATT[a]}" + ("" if d else ", <b>drive off</b>"),
  tips_t="9. Tips",
- tips=["In Reaper, put Darkbass on the bass track before your amp or cab simulator (for example Two Notes Genome), cab sim off.",
+ tips=["In Reaper, put Darkbass on the bass track before your amp or cab simulator (for example Ampire, then Impulse), cab sim off.",
        "Start with DRIVE at noon, BLEND around 5 and GRUNT on CUT for low-tuned basses: the clean path keeps the fundamental, "
        "the overdrive adds growl on top.",
        "For direct recording without an amp simulator, turn the cab sim on.",
@@ -387,7 +387,7 @@ T = {
  fac_hdr=["N°", "Preset", "Master / Blend / Level / Drive", "Bass / Lo / Hi / Treble", "Inverseurs", "Description"],
  sw=lambda g, lo, hi, a, d: f"grunt {GRU[g]}, {LOF[lo].replace('.', ',')}, {HIF[hi].replace('.', ',')}, attack {ATT[a]}" + ("" if d else ", <b>drive coupé</b>"),
  tips_t="9. Conseils d'utilisation",
- tips=["Dans Reaper, placer Darkbass sur la piste basse avant le simulateur d'ampli ou de baffle (par exemple Two Notes Genome), "
+ tips=["Dans Reaper, placer Darkbass sur la piste basse avant le simulateur d'ampli ou de baffle (par exemple Ampire, puis Impulse), "
        "cab sim coupé.",
        "Pour une basse accordée bas, partir de DRIVE à midi, BLEND vers 5 et GRUNT sur CUT : la voie claire garde la "
        "fondamentale, la saturation ajoute le growl par-dessus.",

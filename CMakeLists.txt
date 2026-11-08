@@ -6,7 +6,7 @@ if(APPLE)
   set(CMAKE_OSX_DEPLOYMENT_TARGET "10.13" CACHE STRING "" FORCE)
 endif()
 
-project(Darkbass VERSION 1.1.1)
+project(Darkbass VERSION 1.1.2)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -39,7 +39,7 @@ juce_add_plugin(Darkbass
   FORMATS VST3
   VST3_CATEGORIES Fx Distortion
   PRODUCT_NAME "Darkbass"
-  VERSION 1.1.1
+  VERSION 1.1.2
   DESCRIPTION "Bass preamp / overdrive (B7K Ultra style) - double pedal format"
   IS_SYNTH FALSE
   NEEDS_MIDI_INPUT TRUE

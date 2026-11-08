@@ -43,7 +43,7 @@ part et d'autre de midi (aucune cassure), qui s'accélère vers les butées.
 
 Clic droit : taille de la fenêtre (60 / 75 / 100 %, taille par défaut des nouvelles fenêtres), presets d'usine et
 utilisateur (9 emplacements), **Cab sim** (IR de baffle basse 4x10 intégrée ou fichier WAV / AIFF de l'utilisateur ;
-désactivé par défaut, Darkbass étant placé avant Genome), réglages des footswitchs, MIDI Learn.
+désactivé par défaut, Darkbass étant placé avant Ampire / Impulse), réglages des footswitchs, MIDI Learn.
 
 ## MIDI
 
