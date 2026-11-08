@@ -6,20 +6,21 @@ using namespace juce;
 
 //==============================================================================
 // Presets d'usine (0 a 10 comme sur la pedale ; inverseurs : 0 = haut, 1 = milieu, 2 = bas)
-//   GRUNT / ATTACK : boost / flat / cut     LO FREQ : 1 kHz / 500 / 250     HI FREQ : 3 kHz / 1,5 k / 750
+//   positions haut / milieu / bas comme sur la pedale : GRUNT boost / cut / flat, LO FREQ 500 / 1k / 250,
+//   HI FREQ 1,5k / 3k / 750, ATTACK flat / boost / cut
 //==============================================================================
 static const DarkbassPreset factoryPresets[] =
 {
     //  nom                      master blend level drive bass  lomid himid treb  grunt lo hi atk drive
-    { "Modern Growl",            4.78f, 6.0f, 5.0f, 6.0f, 6.0f, 4.5f, 6.0f, 6.0f,  1,    1, 0, 0,  1 },
-    { "Clean DI",                4.87f, 0.0f, 5.0f, 3.0f, 5.5f, 5.0f, 5.5f, 5.5f,  1,    1, 1, 1,  0 },
-    { "Clank & Grind",           5.72f, 5.5f, 5.5f, 4.0f, 5.0f, 4.0f, 6.5f, 6.5f,  1,    1, 0, 0,  1 },
-    { "Tight Djent",             4.96f, 7.0f, 5.0f, 7.5f, 5.5f, 3.5f, 6.0f, 6.5f,  2,    1, 1, 0,  1 },
+    { "Modern Growl",            4.78f, 6.0f, 5.0f, 6.0f, 6.0f, 4.5f, 6.0f, 6.0f,  2,    0, 1, 1,  1 },
+    { "Clean DI",                4.87f, 0.0f, 5.0f, 3.0f, 5.5f, 5.0f, 5.5f, 5.5f,  2,    0, 0, 0,  0 },
+    { "Clank & Grind",           5.72f, 5.5f, 5.5f, 4.0f, 5.0f, 4.0f, 6.5f, 6.5f,  2,    0, 1, 1,  1 },
+    { "Tight Djent",             4.96f, 7.0f, 5.0f, 7.5f, 5.5f, 3.5f, 6.0f, 6.5f,  1,    0, 0, 1,  1 },
     { "Doom Wall",               3.59f, 8.0f, 5.0f, 9.0f, 6.5f, 5.5f, 5.0f, 4.0f,  0,    2, 2, 2,  1 },
     { "Upright Warmth",          5.16f, 2.0f, 5.0f, 2.0f, 6.0f, 6.0f, 3.5f, 3.5f,  0,    2, 2, 2,  1 },
-    { "Slap Bright",             4.68f, 1.0f, 5.0f, 3.0f, 6.5f, 3.5f, 6.5f, 7.0f,  1,    1, 0, 0,  1 },
-    { "Scooped Metal",           3.59f, 6.5f, 5.0f, 7.0f, 7.0f, 3.0f, 4.5f, 7.0f,  0,    1, 1, 0,  1 },
-    { "Mid Punch Rock",          6.25f, 4.5f, 5.0f, 5.0f, 5.5f, 6.5f, 6.0f, 5.0f,  1,    0, 1, 1,  1 },
+    { "Slap Bright",             4.68f, 1.0f, 5.0f, 3.0f, 6.5f, 3.5f, 6.5f, 7.0f,  2,    0, 1, 1,  1 },
+    { "Scooped Metal",           3.59f, 6.5f, 5.0f, 7.0f, 7.0f, 3.0f, 4.5f, 7.0f,  0,    0, 0, 1,  1 },
+    { "Mid Punch Rock",          6.25f, 4.5f, 5.0f, 5.0f, 5.5f, 6.5f, 6.0f, 5.0f,  2,    1, 0, 0,  1 },
     { "All Noon",                5.0f, 5.0f, 5.0f, 5.0f, 5.0f, 5.0f, 5.0f, 5.0f,  1,    1, 1, 1,  1 },
 };
 
@@ -48,9 +49,11 @@ StringArray DarkbassAudioProcessor::toggleChoices (int i)
 {
     switch (i)
     {
-        case 1:  return { "1 kHz", "500 Hz", "250 Hz" };
-        case 2:  return { "3 kHz", "1.5 kHz", "750 Hz" };
-        default: return { "Boost", "Flat", "Cut" };
+        // ordre des positions comme sur la vraie pedale : haut / milieu / bas
+        case 0:  return { "Boost", "Cut", "Flat" };
+        case 1:  return { "500 Hz", "1 kHz", "250 Hz" };
+        case 2:  return { "1.5 kHz", "3 kHz", "750 Hz" };
+        default: return { "Flat", "Boost", "Cut" };
     }
 }
 

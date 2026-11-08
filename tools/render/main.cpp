@@ -73,9 +73,9 @@ int main (int argc, char** argv)
         std::printf ("sature seul drive %4.1f level 5      : %.1f dB  (crete %.2f)\n", d, r, pk);
     }
     set (proc, "drive", 5); pump (3);
-    for (int g = 0; g < 3; ++g) { set (proc, "grunt", (float) g); pump (3); std::printf ("sature seul grunt %d (0 boost, 2 cut)    : %.1f dB\n", g, runRms (proc, 48000.0)); }
+    for (int g = 0; g < 3; ++g) { set (proc, "grunt", (float) g); pump (3); std::printf ("sature seul grunt pos %d (haut/mil/bas): %.1f dB\n", g, runRms (proc, 48000.0)); }
     set (proc, "grunt", 1);
-    for (int a = 0; a < 3; ++a) { set (proc, "attack", (float) a); pump (3); std::printf ("sature seul attack %d (0 boost, 2 cut)   : %.1f dB\n", a, runRms (proc, 48000.0)); }
+    for (int a = 0; a < 3; ++a) { set (proc, "attack", (float) a); pump (3); std::printf ("sature seul attack pos %d (haut/mil/bas): %.1f dB\n", a, runRms (proc, 48000.0)); }
     set (proc, "attack", 1);
     // reponse en frequence de la voie saturee, petit signal (drive 0) : sinus purs
     {

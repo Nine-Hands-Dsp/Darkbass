@@ -30,11 +30,11 @@ buffer → voie claire unitaire ; voie saturée : passe-haut C2, JFET J201, rés
 | LEVEL | Volume de la voie saturée, loi logarithmique (midi ≈ volume de la voie claire avec DRIVE à midi) |
 | DRIVE | Gain de l'ampli op avant l'écrêteur, ×4 à ×78 ; chaîne : JFET J201 → ampli op → un inverseur CMOS CD4049UBE (x4) |
 | BASS | ±12 dB, plateau à 100 Hz |
-| LO MIDS + LO FREQ | ±12 dB, cloche à 1 kHz / 500 Hz / 250 Hz (inverseur haut / milieu / bas) |
-| HI MIDS + HI FREQ | ±12 dB, cloche à 3 kHz / 1,5 kHz / 750 Hz (inverseur haut / milieu / bas) |
+| LO MIDS + LO FREQ | ±12 dB, cloche à 500 Hz / 1 kHz / 250 Hz (inverseur haut / milieu / bas, ordre de la pédale) |
+| HI MIDS + HI FREQ | ±12 dB, cloche à 1,5 kHz / 3 kHz / 750 Hz (inverseur haut / milieu / bas, ordre de la pédale) |
 | TREBLE | ±12 dB, plateau à 5 kHz |
-| GRUNT (boost / flat / cut) | Trois niveaux de graves dans l'écrêteur (condensateur d'entrée de l'inverseur) : le plus / moyen / le moins |
-| ATTACK (boost / flat / cut) | Signal et aigus dans la saturation : +8,7 dB + aigus / neutre / −2,4 dB − aigus |
+| GRUNT (boost / cut / flat, haut → bas) | Trois niveaux de graves dans l'écrêteur (condensateur d'entrée de l'inverseur) : le plus / moyen / le moins |
+| ATTACK (flat / boost / cut, haut → bas) | Signal et aigus dans la saturation : neutre / +8,7 dB + aigus / −2,4 dB − aigus |
 | Footswitch BYPASS + LED gauche | Pédale entière on / off (signal sec aligné, aucun saut de phase) |
 | Footswitch DRIVE + LED droite | Voie saturée on / off ; coupée = voie claire seule dans l'EQ (BLEND ignoré) |
 
@@ -50,7 +50,7 @@ désactivé par défaut, Darkbass étant placé avant Genome), réglages des foo
 - Aucun CC assigné par défaut : tout passe par le **MIDI Learn** (clic droit sur une commande).
 - Potards : rampe linéaire entre deux CC puis lissage 2 pôles dans le DSP ; course de la pédale d'expression apprise
   automatiquement (0 et 100 % exacts même si elle n'envoie que 2-116) ; CC 14 bits (CC n + n+32) accepté.
-- Inverseurs : CC 86-127 = haut, 43-85 = milieu, 0-42 = bas. Cab sim : CC ≥ 64 = on.
+- Inverseurs : CC 86-127 = haut, 43-85 = milieu, 0-42 = bas (positions dans l'ordre de la vraie pédale). Cab sim : CC ≥ 64 = on.
 - Footswitchs : à accrochage (127 / 0) ou momentanés (chaque appui bascule), au choix.
 - Program Change 1-10 : presets d'usine.
 

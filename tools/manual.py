@@ -18,7 +18,7 @@ from reportlab.pdfbase.ttfonts import TTFont
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SHOTS = sys.argv[1] if len(sys.argv) > 2 else None
 OUT = sys.argv[-1]
-VERSION = "1.1.0"
+VERSION = "1.1.1"
 import tempfile
 TMP = tempfile.mkdtemp()
 FONTS = os.path.join(ROOT, "assets", "fonts")
@@ -142,18 +142,19 @@ def table(rows, widths, header=True):
 
 # ---------- donnees (identiques a PluginProcessor.cpp) ----------
 FACTORY = [  # nom, master, blend, level, drive, bass, lomids, himids, treble, grunt, lo, hi, attack, driveOn
-    ("Modern Growl",   4.78, 6.0, 5.0, 6.0, 6.0, 4.5, 6.0, 6.0, 1, 1, 0, 0, 1),
-    ("Clean DI",       4.87, 0.0, 5.0, 3.0, 5.5, 5.0, 5.5, 5.5, 1, 1, 1, 1, 0),
-    ("Clank & Grind",  5.72, 5.5, 5.5, 4.0, 5.0, 4.0, 6.5, 6.5, 1, 1, 0, 0, 1),
-    ("Tight Djent",    4.96,  7.0, 5.0, 7.5, 5.5, 3.5, 6.0, 6.5, 2, 1, 1, 0, 1),
+    ("Modern Growl",   4.78, 6.0, 5.0, 6.0, 6.0, 4.5, 6.0, 6.0, 2, 0, 1, 1, 1),
+    ("Clean DI",       4.87, 0.0, 5.0, 3.0, 5.5, 5.0, 5.5, 5.5, 2, 0, 0, 0, 0),
+    ("Clank & Grind",  5.72, 5.5, 5.5, 4.0, 5.0, 4.0, 6.5, 6.5, 2, 0, 1, 1, 1),
+    ("Tight Djent",    4.96,  7.0, 5.0, 7.5, 5.5, 3.5, 6.0, 6.5, 1, 0, 0, 1, 1),
     ("Doom Wall",      3.59, 8.0, 5.0, 9.0, 6.5, 5.5, 5.0, 4.0, 0, 2, 2, 2, 1),
     ("Upright Warmth", 5.16,  2.0, 5.0, 2.0, 6.0, 6.0, 3.5, 3.5, 0, 2, 2, 2, 1),
-    ("Slap Bright",    4.68, 1.0, 5.0, 3.0, 6.5, 3.5, 6.5, 7.0, 1, 1, 0, 0, 1),
-    ("Scooped Metal",  3.59, 6.5, 5.0, 7.0, 7.0, 3.0, 4.5, 7.0, 0, 1, 1, 0, 1),
-    ("Mid Punch Rock", 6.25,  4.5, 5.0, 5.0, 5.5, 6.5, 6.0, 5.0, 1, 0, 1, 1, 1),
+    ("Slap Bright",    4.68, 1.0, 5.0, 3.0, 6.5, 3.5, 6.5, 7.0, 2, 0, 1, 1, 1),
+    ("Scooped Metal",  3.59, 6.5, 5.0, 7.0, 7.0, 3.0, 4.5, 7.0, 0, 0, 0, 1, 1),
+    ("Mid Punch Rock", 6.25,  4.5, 5.0, 5.0, 5.5, 6.5, 6.0, 5.0, 2, 1, 0, 0, 1),
     ("All Noon",       5.0,  5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 1, 1, 1, 1, 1)]
-GA = {"en": ["boost", "flat", "cut"], "fr": ["boost", "flat", "cut"]}
-LOF, HIF = ["1 kHz", "500 Hz", "250 Hz"], ["3 kHz", "1.5 kHz", "750 Hz"]
+# positions haut / milieu / bas comme sur la pedale
+GRU, ATT = ["boost", "cut", "flat"], ["flat", "boost", "cut"]
+LOF, HIF = ["500 Hz", "1 kHz", "250 Hz"], ["1.5 kHz", "3 kHz", "750 Hz"]
 DESC = {
  "en": ["The default: drive blended over a solid clean, bright 3 kHz edge and attack boost. Modern growl that stays defined.",
         "Drive footswitch off: the preamp alone, as a clean DI with the 4-band EQ almost flat.",
@@ -200,8 +201,8 @@ T = {
  ov_hdr=["#", "Control", "Function"],
  ov=[("MASTER", "Overall output level"), ("BLEND", "Clean / overdrive mix"), ("LEVEL", "Overdrive path level"), ("DRIVE", "Amount of saturation"),
      ("BASS", "Low shelf, 100 Hz"), ("LO MIDS", "Low-mid bell"), ("HI MIDS", "High-mid bell"), ("TREBLE", "High shelf, 5 kHz"),
-     ("GRUNT", "Lows into the clipping: boost / flat / cut"), ("LO FREQ", "LO MIDS frequency: 1 kHz / 500 / 250 Hz"),
-     ("HI FREQ", "HI MIDS frequency: 3 kHz / 1.5 kHz / 750 Hz"), ("ATTACK", "Treble into the clipping: boost / flat / cut"),
+     ("GRUNT", "Lows into the clipping: boost / cut / flat (up / middle / down)"), ("LO FREQ", "LO MIDS frequency: 500 Hz / 1 kHz / 250 Hz"),
+     ("HI FREQ", "HI MIDS frequency: 1.5 kHz / 3 kHz / 750 Hz"), ("ATTACK", "Signal and treble into the clipping: flat / boost / cut"),
      ("BYPASS LED", "Pedal on"), ("DRIVE LED", "Overdrive on"), ("BYPASS footswitch", "Whole pedal on / off"),
      ("DRIVE footswitch", "Overdrive section on / off"), ("Status line", "Live value of the control you move (appears 2.5 s over the name)"),
      ("Preset bar", "Arrows: previous / next factory preset ; centre: preset menu"), ("IN", "Input jack (right side)"), ("OUT", "Output jack (left side)")],
@@ -219,8 +220,8 @@ T = {
                 "settings), then a single CD4049UBE CMOS inverter in a feedback loop: the « microtubes » distortion. All of it is "
                 "4x oversampled. From a light grit at 0 to a dense, compressed distortion at 10."),
       ("BASS / TREBLE", "±12 dB shelving filters at 100 Hz and 5 kHz."),
-      ("LO MIDS / HI MIDS", "±12 dB bell filters. LO FREQ selects 1 kHz, 500 Hz or 250 Hz, HI FREQ selects 3 kHz, 1.5 kHz or 750 Hz "
-                            "(switch up / middle / down). Frequency changes glide smoothly, without clicks."),
+      ("LO MIDS / HI MIDS", "±12 dB bell filters. LO FREQ selects 500 Hz, 1 kHz or 250 Hz, HI FREQ selects 1.5 kHz, 3 kHz or 750 Hz "
+                            "(switch up / middle / down, in the same order as on the pedal; the middle is the original B7K setting). Frequency changes glide smoothly, without clicks."),
       ("EQ curve", "All four EQ knobs follow the same continuous curve: no step or change of slope at noon, finer around noon "
                    "and faster towards the ends. The EQ acts on the mix, clean signal included, so it also shapes the clean "
                    "preamp when DRIVE is off."),
@@ -270,7 +271,7 @@ T = {
  pre=["Ten factory presets, recalled from the preset bar, the right-click menu, the DAW program list or MIDI Program Change. "
       "Factory presets are levelled to the same loudness. Your own settings can be saved in 9 user slots."],
  fac_hdr=["#", "Preset", "Master / Blend / Level / Drive", "Bass / Lo / Hi / Treble", "Switches", "Description"],
- sw=lambda g, lo, hi, a, d: f"grunt {GA['en'][g]}, {LOF[lo]}, {HIF[hi]}, attack {GA['en'][a]}" + ("" if d else ", <b>drive off</b>"),
+ sw=lambda g, lo, hi, a, d: f"grunt {GRU[g]}, {LOF[lo]}, {HIF[hi]}, attack {ATT[a]}" + ("" if d else ", <b>drive off</b>"),
  tips_t="9. Tips",
  tips=["In Reaper, put Darkbass on the bass track before your amp or cab simulator (for example Two Notes Genome), cab sim off.",
        "Start with DRIVE at noon, BLEND around 5 and GRUNT on CUT for low-tuned basses: the clean path keeps the fundamental, "
@@ -309,8 +310,8 @@ T = {
  ov_hdr=["N°", "Commande", "Rôle"],
  ov=[("MASTER", "Volume général"), ("BLEND", "Mélange clair / saturé"), ("LEVEL", "Volume de la voie saturée"), ("DRIVE", "Quantité de saturation"),
      ("BASS", "Plateau grave, 100 Hz"), ("LO MIDS", "Cloche bas-médiums"), ("HI MIDS", "Cloche haut-médiums"), ("TREBLE", "Plateau aigu, 5 kHz"),
-     ("GRUNT", "Graves dans l'écrêtage : boost / flat / cut"), ("LO FREQ", "Fréquence de LO MIDS : 1 kHz / 500 / 250 Hz"),
-     ("HI FREQ", "Fréquence de HI MIDS : 3 kHz / 1,5 kHz / 750 Hz"), ("ATTACK", "Aigus dans l'écrêtage : boost / flat / cut"),
+     ("GRUNT", "Graves dans l'écrêtage : boost / cut / flat (haut / milieu / bas)"), ("LO FREQ", "Fréquence de LO MIDS : 500 Hz / 1 kHz / 250 Hz"),
+     ("HI FREQ", "Fréquence de HI MIDS : 1,5 kHz / 3 kHz / 750 Hz"), ("ATTACK", "Signal et aigus dans l'écrêtage : flat / boost / cut"),
      ("LED BYPASS", "Pédale active"), ("LED DRIVE", "Saturation active"), ("Footswitch BYPASS", "Toute la pédale on / off"),
      ("Footswitch DRIVE", "Voie saturée on / off"), ("Ligne d'état", "Valeur en direct de la commande manipulée (2,5 s par-dessus le nom)"),
      ("Barre de presets", "Flèches : preset d'usine précédent / suivant ; centre : menu des presets"), ("IN", "Entrée (côté droit)"), ("OUT", "Sortie (côté gauche)")],
@@ -330,8 +331,8 @@ T = {
                 "saturation « microtubes ». Le tout est sur-échantillonné x4. D'un léger grain à 0 jusqu'à une distorsion dense "
                 "et compressée à 10."),
       ("BASS / TREBLE", "Filtres en plateau ±12 dB à 100 Hz et 5 kHz."),
-      ("LO MIDS / HI MIDS", "Filtres en cloche ±12 dB. LO FREQ choisit 1 kHz, 500 Hz ou 250 Hz, HI FREQ choisit 3 kHz, 1,5 kHz ou "
-                            "750 Hz (inverseur haut / milieu / bas). Le changement de fréquence glisse en douceur, sans clic."),
+      ("LO MIDS / HI MIDS", "Filtres en cloche ±12 dB. LO FREQ choisit 500 Hz, 1 kHz ou 250 Hz, HI FREQ choisit 1,5 kHz, 3 kHz ou "
+                            "750 Hz (inverseur haut / milieu / bas, dans le même ordre que sur la pédale ; le milieu correspond à la B7K d'origine). Le changement de fréquence glisse en douceur, sans clic."),
       ("Courbe de l'EQ", "Les quatre potards d'EQ suivent la même courbe continue : aucune marche ni changement de pente à midi, "
                           "réglage fin autour de midi, plus rapide vers les butées. L'EQ agit sur le mélange, clair compris : il "
                           "règle aussi le préampli clair quand DRIVE est coupé."),
@@ -384,7 +385,7 @@ T = {
  pre=["Dix presets d'usine, rappelés depuis la barre de presets, le menu clic droit, la liste des programmes du DAW ou un "
       "Program Change MIDI. Ils sont tous au même volume. Vos propres réglages se sauvegardent dans 9 emplacements utilisateur."],
  fac_hdr=["N°", "Preset", "Master / Blend / Level / Drive", "Bass / Lo / Hi / Treble", "Inverseurs", "Description"],
- sw=lambda g, lo, hi, a, d: f"grunt {GA['fr'][g]}, {LOF[lo].replace('.', ',')}, {HIF[hi].replace('.', ',')}, attack {GA['fr'][a]}" + ("" if d else ", <b>drive coupé</b>"),
+ sw=lambda g, lo, hi, a, d: f"grunt {GRU[g]}, {LOF[lo].replace('.', ',')}, {HIF[hi].replace('.', ',')}, attack {ATT[a]}" + ("" if d else ", <b>drive coupé</b>"),
  tips_t="9. Conseils d'utilisation",
  tips=["Dans Reaper, placer Darkbass sur la piste basse avant le simulateur d'ampli ou de baffle (par exemple Two Notes Genome), "
        "cab sim coupé.",

@@ -50,10 +50,11 @@ KNOBS = {   # id : (x, y, R, label)
 ORDER = ['master', 'blend', 'level', 'drive', 'bass', 'lomids', 'himids', 'treble']
 # inverseurs 3 positions : (x, y, nom, (haut, milieu, bas))
 TOGGLES = [
-    (COLS[0], ROW3, 'GRUNT',   ('BOOST', 'FLAT', 'CUT')),
-    (COLS[1], ROW3, 'LO FREQ', ('1 kHz', '500', '250')),
-    (COLS[2], ROW3, 'HI FREQ', ('3 kHz', '1.5 k', '750')),
-    (COLS[3], ROW3, 'ATTACK',  ('BOOST', 'FLAT', 'CUT')),
+    # ordre des positions comme sur la vraie pedale (haut / milieu / bas)
+    (COLS[0], ROW3, 'GRUNT',   ('BOOST', 'CUT', 'FLAT')),
+    (COLS[1], ROW3, 'LO FREQ', ('500', '1 kHz', '250')),
+    (COLS[2], ROW3, 'HI FREQ', ('1.5 k', '3 kHz', '750')),
+    (COLS[3], ROW3, 'ATTACK',  ('FLAT', 'BOOST', 'CUT')),
 ]
 LED_L, LED_R = (COLS[0], 670.0), (COLS[3], 670.0)
 FS_L, FS_R = (COLS[0], 790.0), (COLS[3], 790.0)

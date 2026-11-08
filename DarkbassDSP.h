@@ -31,7 +31,7 @@ namespace darkbass
     struct Params
     {
         float master = 5, blend = 5, level = 5, drive = 5, bass = 5, lomids = 5, himids = 5, treble = 5;   // 0..10
-        int grunt = 1, loFreq = 1, hiFreq = 1, attack = 1;     // 0 = position haute, 1 = milieu, 2 = basse
+        int grunt = 2, loFreq = 1, hiFreq = 1, attack = 0;     // positions : 0 = haut, 1 = milieu, 2 = bas
         bool active = true, driveOn = true, cab = false;
     };
 
@@ -257,9 +257,13 @@ namespace darkbass
 
         void processChunk (float* const* io, int numCh, int n, const Params& p)
         {
-            updateSwitches (juce::jlimit (0, 2, p.grunt), juce::jlimit (0, 2, p.attack));
-            const float loTarget = std::log2 (std::array<float, 3> { 1000.0f, 500.0f, 250.0f }[(size_t) juce::jlimit (0, 2, p.loFreq)]);
-            const float hiTarget = std::log2 (std::array<float, 3> { 3000.0f, 1500.0f, 750.0f }[(size_t) juce::jlimit (0, 2, p.hiFreq)]);
+            // positions comme sur la vraie pedale (haut / milieu / bas) -> fonction (0 boost, 1 flat, 2 cut)
+            //   GRUNT  : BOOST / CUT / FLAT      ATTACK : FLAT / BOOST / CUT
+            //   LO FREQ : 500 / 1k / 250 Hz      HI FREQ : 1,5k / 3k / 750 Hz   (milieu = valeurs de la B7K d'origine)
+            static constexpr int gruntFn[3] = { 0, 2, 1 }, attackFn[3] = { 1, 0, 2 };
+            updateSwitches (gruntFn[juce::jlimit (0, 2, p.grunt)], attackFn[juce::jlimit (0, 2, p.attack)]);
+            const float loTarget = std::log2 (std::array<float, 3> { 500.0f, 1000.0f, 250.0f }[(size_t) juce::jlimit (0, 2, p.loFreq)]);
+            const float hiTarget = std::log2 (std::array<float, 3> { 1500.0f, 3000.0f, 750.0f }[(size_t) juce::jlimit (0, 2, p.hiFreq)]);
             if (first)
             {
                 sMaster.snap (p.master); sBlend.snap (p.blend); sLevel.snap (p.level); sDrive.snap (p.drive);
