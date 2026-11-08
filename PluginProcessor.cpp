@@ -11,15 +11,15 @@ using namespace juce;
 static const DarkbassPreset factoryPresets[] =
 {
     //  nom                      master blend level drive bass  lomid himid treb  grunt lo hi atk drive
-    { "Modern Growl",            5.15f, 6.0f, 5.0f, 6.0f, 6.0f, 4.5f, 6.0f, 6.0f,  1,    1, 0, 0,  1 },
-    { "Clean DI",                5.25f, 0.0f, 5.0f, 3.0f, 5.5f, 5.0f, 5.5f, 5.5f,  1,    1, 1, 1,  0 },
-    { "Clank & Grind",           5.65f, 5.5f, 5.5f, 4.0f, 5.0f, 4.0f, 6.5f, 6.5f,  1,    1, 0, 0,  1 },
-    { "Tight Djent",             6.8f, 7.0f, 5.0f, 7.5f, 5.5f, 3.5f, 6.0f, 6.5f,  2,    1, 1, 0,  1 },
-    { "Doom Wall",               3.65f, 8.0f, 5.0f, 9.0f, 6.5f, 5.5f, 5.0f, 4.0f,  0,    2, 2, 2,  1 },
-    { "Upright Warmth",          4.1f, 2.0f, 5.0f, 2.0f, 6.0f, 6.0f, 3.5f, 3.5f,  0,    2, 2, 2,  1 },
-    { "Slap Bright",             4.85f, 1.0f, 5.0f, 3.0f, 6.5f, 3.5f, 6.5f, 7.0f,  1,    1, 0, 0,  1 },
-    { "Scooped Metal",           3.45f, 6.5f, 5.0f, 7.0f, 7.0f, 3.0f, 4.5f, 7.0f,  0,    1, 1, 0,  1 },
-    { "Mid Punch Rock",          5.6f, 4.5f, 5.0f, 5.0f, 5.5f, 6.5f, 6.0f, 5.0f,  1,    0, 1, 1,  1 },
+    { "Modern Growl",            4.78f, 6.0f, 5.0f, 6.0f, 6.0f, 4.5f, 6.0f, 6.0f,  1,    1, 0, 0,  1 },
+    { "Clean DI",                4.87f, 0.0f, 5.0f, 3.0f, 5.5f, 5.0f, 5.5f, 5.5f,  1,    1, 1, 1,  0 },
+    { "Clank & Grind",           5.72f, 5.5f, 5.5f, 4.0f, 5.0f, 4.0f, 6.5f, 6.5f,  1,    1, 0, 0,  1 },
+    { "Tight Djent",             4.96f, 7.0f, 5.0f, 7.5f, 5.5f, 3.5f, 6.0f, 6.5f,  2,    1, 1, 0,  1 },
+    { "Doom Wall",               3.59f, 8.0f, 5.0f, 9.0f, 6.5f, 5.5f, 5.0f, 4.0f,  0,    2, 2, 2,  1 },
+    { "Upright Warmth",          5.16f, 2.0f, 5.0f, 2.0f, 6.0f, 6.0f, 3.5f, 3.5f,  0,    2, 2, 2,  1 },
+    { "Slap Bright",             4.68f, 1.0f, 5.0f, 3.0f, 6.5f, 3.5f, 6.5f, 7.0f,  1,    1, 0, 0,  1 },
+    { "Scooped Metal",           3.59f, 6.5f, 5.0f, 7.0f, 7.0f, 3.0f, 4.5f, 7.0f,  0,    1, 1, 0,  1 },
+    { "Mid Punch Rock",          6.25f, 4.5f, 5.0f, 5.0f, 5.5f, 6.5f, 6.0f, 5.0f,  1,    0, 1, 1,  1 },
     { "All Noon",                5.0f, 5.0f, 5.0f, 5.0f, 5.0f, 5.0f, 5.0f, 5.0f,  1,    1, 1, 1,  1 },
 };
 

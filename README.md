@@ -13,20 +13,28 @@ Usage personnel. Windows 11 et macOS (binaire universel).
      (premier lancement : `xattr -cr ~/Library/Audio/Plug-Ins/VST3/Darkbass.vst3` si macOS le bloque)
 3. Relancer l'analyse des plugins. Le plugin apparaît comme **Darkbass (NINE HANDS | DSP)**.
 
+## Moteur audio (v1.1)
+
+Modèle du circuit de la B7K Ultra d'après le manuel Darkglass et l'analyse de circuit open source
+[Obsidian-B7000](https://github.com/tehguitarist/Obsidian-B7000) (valeurs des composants et mesures sur captures) :
+buffer → voie claire unitaire ; voie saturée : passe-haut C2, JFET J201, réseau ATTACK / échelle d'aigus, C7, ampli op DRIVE
+×4–×78 (écrêtage sur rails), condensateur GRUNT, un inverseur CD4049UBE en contre-réaction (gain fini ~25), C15, T ponté
+(creux ~717 Hz), Sallen-Key 10,7 kHz + 3,3 kHz, LEVEL (courbe A) → BLEND (fondu linéaire) → C21 → EQ (Baxandall + cloches) → MASTER.
+
 ## Commandes
 
 | Commande | Rôle |
 |---|---|
 | MASTER | Volume général (midi = 0 dB, 0 = coupé, 10 = +12 dB) |
-| BLEND | Mélange voie claire / voie saturée, à puissance égale (0 = clair seul, 10 = saturé seul) |
-| LEVEL | Volume de la voie saturée (midi ≈ volume de la voie claire) |
-| DRIVE | Quantité de saturation (+2 à +46 dB avant deux étages CMOS asymétriques « microtubes », sur-échantillonnés x4) |
+| BLEND | Fondu linéaire voie claire / voie saturée, comme le potentiomètre de la pédale (0 = clair seul, 10 = saturé seul) |
+| LEVEL | Volume de la voie saturée, loi logarithmique (midi ≈ volume de la voie claire avec DRIVE à midi) |
+| DRIVE | Gain de l'ampli op avant l'écrêteur, ×4 à ×78 ; chaîne : JFET J201 → ampli op → un inverseur CMOS CD4049UBE (x4) |
 | BASS | ±12 dB, plateau à 100 Hz |
 | LO MIDS + LO FREQ | ±12 dB, cloche à 1 kHz / 500 Hz / 250 Hz (inverseur haut / milieu / bas) |
 | HI MIDS + HI FREQ | ±12 dB, cloche à 3 kHz / 1,5 kHz / 750 Hz (inverseur haut / milieu / bas) |
 | TREBLE | ±12 dB, plateau à 5 kHz |
-| GRUNT (boost / flat / cut) | Graves envoyés dans la saturation : plateau +9 dB à 140 Hz / plat / coupe 190 Hz (son serré) |
-| ATTACK (boost / flat / cut) | Aigus envoyés dans la saturation : +8 dB à 2,4 kHz + présence / plat / −9 dB |
+| GRUNT (boost / flat / cut) | Trois niveaux de graves dans l'écrêteur (condensateur d'entrée de l'inverseur) : le plus / moyen / le moins |
+| ATTACK (boost / flat / cut) | Signal et aigus dans la saturation : +8,7 dB + aigus / neutre / −2,4 dB − aigus |
 | Footswitch BYPASS + LED gauche | Pédale entière on / off (signal sec aligné, aucun saut de phase) |
 | Footswitch DRIVE + LED droite | Voie saturée on / off ; coupée = voie claire seule dans l'EQ (BLEND ignoré) |
 

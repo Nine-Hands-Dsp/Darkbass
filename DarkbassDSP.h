@@ -1,18 +1,30 @@
 #pragma once
-// DARKBASS (NINE HANDS | DSP) - moteur audio, d'apres la Darkglass Microtubes B7K Ultra v2 :
+// DARKBASS (NINE HANDS | DSP) - moteur audio v1.1, d'apres la Darkglass Microtubes B7K Ultra v2.
 //
-//   entree --+-- voie claire (gain unitaire, retardee de la latence du sur-echantillonnage) ------------+
-//            |                                                                                          +-- BLEND --> EQ 4 bandes --> [CAB SIM] --> MASTER
-//            +-- voie saturee : GRUNT (graves avant ecretage) + ATTACK (aigus avant ecretage) -> DRIVE   |
-//                -> 2 etages CMOS facon « microtubes » (x4, asymetriques) -> filtre de sortie -> LEVEL --+
+// Sources (nov. 2026) : manuel / fiche Darkglass (commandes, EQ, footswitch dedie a l'overdrive, clair a gain unitaire)
+// et deux analyses de circuit open source de la B7K Ultra (schema du clone « Black Mirror VII », valeurs des composants,
+// mesures sur captures) : github.com/tehguitarist/Obsidian-B7000 (.claude/rules/circuit.md, src/dsp/FitParams.h).
 //
-// Footswitch DRIVE coupe : la voie claire seule passe dans l'EQ (BLEND ignore), comme sur la pedale.
-// Footswitch BYPASS coupe : signal d'entree intact (retarde de la meme latence, aucun saut de phase).
-// EQ (sur le melange, clair compris) : BASS +-12 dB @ 100 Hz, LO MIDS +-12 dB @ 250 / 500 / 1k, HI MIDS +-12 dB @ 750 / 1,5k / 3k,
-// TREBLE +-12 dB @ 5 kHz ; courbe continue de meme pente de part et d'autre de midi (aucune cassure).
-// Aucune allocation, aucun verrou dans process() ; filtres maison (pas de juce::dsp::IIR qui alloue).
+//   IN (1 Mohm) --> buffer --+-- voie claire (gain unitaire) -------------------------------------------------------+
+//                            |                                                                                     |
+//                            +-- C2/R4 (passe-haut 145 Hz) --> etage JFET J201 (gain ~x12 a x17, saturation douce   |
+//                                asymetrique) --> reseau ATTACK / echelle d'aigus (creux ~320 Hz) --> C7 (183 Hz)   |
+//                                --> DRIVE : ampli op non inverseur x4 a x78 (potard C, ecretage sur les rails)      |
+//                                --> GRUNT : condensateur d'entree de l'inverseur (3,7 n / +47 n / +220 n)           |
+//                                --> UN inverseur CMOS CD4049UBE en contre-reaction (R16 6k8, R18 330k // C14 220p,   |
+//                                    gain de boucle ouverte fini ~25), saturation douce asymetrique                   |
+//                                --> C15 --> T ponte (creux ~717 Hz) --> Sallen-Key 10,7 kHz --> Sallen-Key 3,3 kHz   |
+//                                --> LEVEL (potard A) ------------------------------------------------------------- BLEND (potard B, fondu lineaire)
+//   --> C21 (passe-haut 12 Hz) --> EQ : BASS / TREBLE Baxandall (+-12 dB a 100 Hz / 5 kHz), LO MIDS / HI MIDS en cloche
+//   --> [CAB SIM] --> MASTER
+//
+// Partie saturee entierement sur-echantillonnee x4 (filtres en double precision). La voie claire et le bypass sont
+// retardes de la latence du sur-echantillonnage. Footswitch DRIVE coupe : voie claire seule dans l'EQ.
+// Tensions : 1,0 en numerique = 2 V crete (niveau instrument), pour que les seuils de saturation soient ceux du circuit.
+// Aucune allocation, aucun verrou dans process().
 #include <juce_dsp/juce_dsp.h>
 #include <cmath>
+#include <array>
 
 namespace darkbass
 {
@@ -23,28 +35,46 @@ namespace darkbass
         bool active = true, driveOn = true, cab = false;
     };
 
-    // ------------------------------------------------------------------ biquad (RBJ), forme transposee II
+    // ------------------------------------------------------------------ biquad (double), forme transposee II
     struct Biquad
     {
-        float b0 = 1, b1 = 0, b2 = 0, a1 = 0, a2 = 0, z1 = 0, z2 = 0;
+        double b0 = 1, b1 = 0, b2 = 0, a1 = 0, a2 = 0, z1 = 0, z2 = 0;
         void reset() { z1 = z2 = 0; }
-        inline float process (float x)
+        inline double process (double x)
         {
-            const float y = b0 * x + z1;
+            const double y = b0 * x + z1;
             z1 = b1 * x - a1 * y + z2;
             z2 = b2 * x - a2 * y;
             return y;
         }
         void set (double B0, double B1, double B2, double A0, double A1, double A2)
         {
-            b0 = (float) (B0 / A0); b1 = (float) (B1 / A0); b2 = (float) (B2 / A0); a1 = (float) (A1 / A0); a2 = (float) (A2 / A0);
+            b0 = B0 / A0; b1 = B1 / A0; b2 = B2 / A0; a1 = A1 / A0; a2 = A2 / A0;
         }
-        void lowShelf (double sr, double f, double q, double dB)
+        // filtre analogique (n0 + n1 s + n2 s^2) / (d0 + d1 s + d2 s^2), transformee bilineaire pre-deformee a fw (Hz)
+        void analog (double sr, double n0, double n1, double n2, double d0, double d1, double d2, double fw)
+        {
+            const double w = 2.0 * juce::MathConstants<double>::pi * juce::jlimit (1.0, 0.45 * sr, fw);
+            const double K = w / std::tan (w / (2.0 * sr));
+            const double K2 = K * K;
+            set (n0 + n1 * K + n2 * K2, 2.0 * (n0 - n2 * K2), n0 - n1 * K + n2 * K2,
+                 d0 + d1 * K + d2 * K2, 2.0 * (d0 - d2 * K2), d0 - d1 * K + d2 * K2);
+        }
+        // 1er ordre analogique (n0 + n1 s) / (d0 + d1 s)
+        void analog1 (double sr, double n0, double n1, double d0, double d1, double fw) { analog (sr, n0, n1, 0, d0, d1, 0, fw); }
+        void highPass1 (double sr, double f) { const double w = 2 * juce::MathConstants<double>::pi * f; analog1 (sr, 0, 1, w, 1, f); }
+        void lowPass1 (double sr, double f)  { const double w = 2 * juce::MathConstants<double>::pi * f; analog1 (sr, w, 0, w, 1, f); }
+        // passe-bas Sallen-Key gain unitaire (f0, Q)
+        void lowPassQ (double sr, double f, double q)
+        {
+            const double w = 2 * juce::MathConstants<double>::pi * f;
+            analog (sr, w * w, 0, 0, w * w, w / q, 1, f);
+        }
+        void peak (double sr, double f, double q, double dB)
         {
             const double A = std::pow (10.0, dB / 40.0), w = 2 * juce::MathConstants<double>::pi * f / sr;
-            const double cw = std::cos (w), al = std::sin (w) / (2 * q), sA = 2 * std::sqrt (A) * al;
-            set (A * ((A + 1) - (A - 1) * cw + sA), 2 * A * ((A - 1) - (A + 1) * cw), A * ((A + 1) - (A - 1) * cw - sA),
-                 (A + 1) + (A - 1) * cw + sA, -2 * ((A - 1) + (A + 1) * cw), (A + 1) + (A - 1) * cw - sA);
+            const double cw = std::cos (w), al = std::sin (w) / (2 * q);
+            set (1 + al * A, -2 * cw, 1 - al * A, 1 + al / A, -2 * cw, 1 - al / A);
         }
         void highShelf (double sr, double f, double q, double dB)
         {
@@ -53,30 +83,19 @@ namespace darkbass
             set (A * ((A + 1) + (A - 1) * cw + sA), -2 * A * ((A - 1) + (A + 1) * cw), A * ((A + 1) + (A - 1) * cw - sA),
                  (A + 1) - (A - 1) * cw + sA, 2 * ((A - 1) - (A + 1) * cw), (A + 1) - (A - 1) * cw - sA);
         }
-        void peak (double sr, double f, double q, double dB)
+        // plateaux du 1er ordre facon Baxandall : gain g (lineaire) sous / au-dessus de fc
+        void lowShelf1 (double sr, double fc, double g)
         {
-            const double A = std::pow (10.0, dB / 40.0), w = 2 * juce::MathConstants<double>::pi * f / sr;
-            const double cw = std::cos (w), al = std::sin (w) / (2 * q);
-            set (1 + al * A, -2 * cw, 1 - al * A, 1 + al / A, -2 * cw, 1 - al / A);
+            const double w = 2 * juce::MathConstants<double>::pi * fc;
+            if (g >= 1.0) analog1 (sr, g * w, 1, w, 1, fc);        // (s + g w) / (s + w)
+            else          analog1 (sr, w, 1, w / g, 1, fc);        // inverse exacte (coupe symetrique)
         }
-        void lowPass (double sr, double f, double q)
+        void highShelf1 (double sr, double fc, double g)
         {
-            const double w = 2 * juce::MathConstants<double>::pi * f / sr, cw = std::cos (w), al = std::sin (w) / (2 * q);
-            set ((1 - cw) / 2, 1 - cw, (1 - cw) / 2, 1 + al, -2 * cw, 1 - al);
+            const double w = 2 * juce::MathConstants<double>::pi * fc;
+            if (g >= 1.0) analog1 (sr, w, g, w, 1, fc);            // (g s + w) / (s + w)
+            else          analog1 (sr, w, 1, w, 1.0 / g, fc);
         }
-        void highPass (double sr, double f, double q)
-        {
-            const double w = 2 * juce::MathConstants<double>::pi * f / sr, cw = std::cos (w), al = std::sin (w) / (2 * q);
-            set ((1 + cw) / 2, -(1 + cw), (1 + cw) / 2, 1 + al, -2 * cw, 1 - al);
-        }
-    };
-
-    // passe-haut du 1er ordre (blocage du continu)
-    struct DCBlock
-    {
-        float R = 0.999f, x1 = 0, y1 = 0;
-        void prepare (double sr, double f) { R = (float) std::exp (-2 * juce::MathConstants<double>::pi * f / sr); x1 = y1 = 0; }
-        inline float process (float x) { const float y = x - x1 + R * y1; x1 = x; y1 = y; return y; }
     };
 
     // lissage a 2 poles (pedale d'expression sans marches, potards et parametres derives)
@@ -88,50 +107,76 @@ namespace darkbass
         inline float next (float target) { s1 += a * (target - s1); s2 += a * (s1 - s2); return s2; }
     };
 
-    // courbe des potards d'EQ : +-12 dB, meme pente des deux cotes de midi, s'accelere vers les butees
+    // courbe des potards d'EQ : +-12 dB a la frequence nominale, meme pente des deux cotes de midi
     inline float eqDb (float knob) { const float x = juce::jlimit (-1.0f, 1.0f, (knob - 5.0f) / 5.0f); return 9.0f * x + 3.0f * x * std::abs (x); }
-    // MASTER / LEVEL : 0 = silence, midi = 0 dB, 10 = +12 dB (loi continue)
+    // MASTER : 0 = silence, midi = 0 dB, 10 = +12 dB (loi continue)
     inline float gainLaw (float knob) { const float x = juce::jmax (0.0f, knob) / 5.0f; return x * x; }
-
-    // etage CMOS « microtubes » : saturation douce asymetrique, pente unitaire a l'origine
-    inline float cmos (float x)
+    // LEVEL : potard 100k courbe A, loi releve sur captures (fraction de la resistance selon la rotation)
+    inline float levelTaper (float knob)
     {
-        constexpr float b = 0.28f;
-        static const float tb = std::tanh (b), k = 1.0f / (1.0f - tb * tb);
-        return (std::tanh (x + b) - tb) * k;
+        static const float rx[5] = { 0.0f, 0.206030f, 0.543750f, 0.775388f, 1.0f };
+        static const float ry[5] = { 0.0f, 0.026166f, 0.223470f, 0.528328f, 1.0f };
+        const float x = juce::jlimit (0.0f, 1.0f, knob / 10.0f);
+        int i = 0; while (i < 3 && x > rx[i + 1]) ++i;
+        return ry[i] + (ry[i + 1] - ry[i]) * (x - rx[i]) / (rx[i + 1] - rx[i]);
+    }
+    // DRIVE : ampli op non inverseur, gain = 1 + 330k / (3k3 + 1k + R), R = 100k (1 - x)^1,98 (potard C)
+    inline float driveGain (float knob)
+    {
+        const float x = juce::jlimit (0.0f, 1.0f, knob / 10.0f);
+        return 1.0f + 330.0e3f / (4.3e3f + 100.0e3f * std::pow (1.0f - x, 1.98f));
+    }
+    // saturation douce asymetrique (seuils positif / negatif en volts)
+    inline double softClip (double v, double pos, double neg)
+    {
+        return v >= 0.0 ? pos * std::tanh (v / pos) : neg * std::tanh (v / neg);
     }
 
     class Engine
     {
     public:
         static constexpr int kChunk = 512;
-        static constexpr int kOS = 2;      // 2 etages = x4
+        static constexpr int kOS = 2;                 // 2 etages = x4
+        static constexpr double kVolts = 2.0;         // 1,0 numerique = 2 V crete
 
         void prepare (double sampleRate, int /*maxBlock*/)
         {
             sr = sampleRate;
+            osr = sr * (1 << kOS);
             os = std::make_unique<juce::dsp::Oversampling<float>> (2, kOS, juce::dsp::Oversampling<float>::filterHalfBandFIREquiripple, true, true);
             os->initProcessing ((size_t) kChunk);
             latency = (int) std::lround (os->getLatencyInSamples());
-            const double osr = sr * (1 << kOS);
             for (int c = 0; c < 2; ++c)
             {
-                inDC[c].prepare (sr, 18.0);
-                preHP[c].reset(); gruntShelf[c].reset(); attackShelf[c].reset(); attackPeak[c].reset();
-                stage1LP[c].reset(); postLP[c].reset(); postLP2[c].reset();
-                mid1DC[c].prepare (osr, 12.0); outDC[c].prepare (sr, 15.0);
+                // voie saturee (cadence x4)
+                hpC2[c].highPass1 (osr, 145.0);                          // C2 1n / (R4 100k + R5 1M)
+                // J201 : gain x12,5 dans le grave, x16,7 au-dessus (C3 shunte la degeneration R6), zero 219 Hz / pole 292 Hz
+                {
+                    const double w1 = 2 * juce::MathConstants<double>::pi * 219.0, w2 = w1 * 1.333;
+                    jfetShelf[c].analog1 (osr, 12.5 * w2, 12.5 * w2 / w1, w2, 1.0, 250.0);
+                }
+                jfetDC[c].highPass1 (osr, 8.0);
+                hpC7[c].highPass1 (osr, 183.0);                          // C7 (valeur ajustee sur captures) / R11 // R13
+                driveLP[c].lowPass1 (osr, 10300.0);                      // C10 47p // R15 330k
+                c15[c].highPass1 (osr, 30.0);                            // C15 (ajuste sur captures)
+                // sortie (cadence de base)
+                bridgedT[c].analog (sr, kBtN0, kBtN1, kBtN2, 1.0, kBtD1, kBtD2, 717.0);   // T ponte R22 100k, R23 33k, C16 680p, C17 22n
+                sk1[c].lowPassQ (sr, juce::jmin (10700.0, 0.45 * sr), 0.463);           // R24 10k, R25 22k, C18 / C27 1n
+                sk2[c].lowPassQ (sr, 3337.0, 0.691);                                    // R26 22k, R27 47k, C19 2n2, C20 1n
+                c21[c].highPass1 (sr, 12.2);                                            // C21 100n (passe-haut apres BLEND)
+                inDC[c].highPass1 (sr, 5.0);
+                for (auto* b : { &hpC2[c], &jfetShelf[c], &jfetDC[c], &ladderNotch[c], &attackTilt[c], &hpC7[c], &driveLP[c],
+                                 &clipLin[c], &c15[c], &bridgedT[c], &sk1[c], &sk2[c], &c21[c], &inDC[c] }) b->reset();
                 for (auto& b : eq[c]) b.reset();
                 std::fill (std::begin (delay[c]), std::end (delay[c]), 0.0f);
             }
-            for (int c = 0; c < 2; ++c) stage1LP[c].lowPass (osr, 12000.0, 0.6);
-            for (int c = 0; c < 2; ++c) { postLP[c].lowPass (sr, 6200.0, 0.62); postLP2[c].lowPass (sr, juce::jmin (11000.0, 0.45 * sr), 0.5); }
             delayPos = 0;
             for (auto* s : { &sMaster, &sBlend, &sLevel, &sDrive, &sBass, &sLo, &sHi, &sTreb }) s->prepare (sr, 18.0);
             for (auto* s : { &sActive, &sDriveOn, &sCab }) s->prepare (sr, 9.0);
             for (auto* s : { &sLoF, &sHiF }) s->prepare (sr, 25.0);
             first = true;
             cachedGrunt = cachedAttack = -1;
-            driveBuf.setSize (2, kChunk); cleanBuf.setSize (2, kChunk); dryBuf.setSize (2, kChunk);
+            odBuf.setSize (2, kChunk); cleanBuf.setSize (2, kChunk); dryBuf.setSize (2, kChunk); tmpBuf.setSize (2, kChunk);
 
             juce::dsp::ProcessSpec spec { sr, (juce::uint32) kChunk, 2 };
             conv.prepare (spec);
@@ -143,7 +188,6 @@ namespace darkbass
 
         int getLatency() const { return latency; }
 
-        // IR utilisateur (thread de messages) ; la convolution la charge en arriere-plan sans couper le son
         bool loadUserIR (const juce::File& f)
         {
             if (! f.existsAsFile()) return false;
@@ -172,37 +216,48 @@ namespace darkbass
         }
 
     private:
-        void updatePreFilters (int grunt, int attack)
+        // ATTACK et GRUNT : reseaux recalcules seulement quand l'inverseur change
+        void updateSwitches (int grunt, int attack)
         {
             if (grunt == cachedGrunt && attack == cachedAttack) return;
             cachedGrunt = grunt; cachedAttack = attack;
-            // GRUNT : quantite de graves qui entre dans l'ecretage (boost / flat / cut)
-            const double hp[3] = { 35.0, 70.0, 190.0 }, sh[3] = { 9.0, 0.0, -3.0 };
-            // ATTACK : quantite d'aigus qui entre dans l'ecretage (boost / flat / cut)
-            const double hs[3] = { 8.0, 0.0, -9.0 }, pk[3] = { 3.5, 0.0, 0.0 };
+            // ATTACK (mesure sur unite reelle) : gain large bande dans l'ecretage +8,65 / 0 / -2,39 dB (boost / flat / cut),
+            // creux d'annulation de l'echelle d'aigus a 316 / 322 / 328 Hz ; Darkglass : plus ou moins d'aigus satures
+            const double gainDb[3] = { 8.65, 0.0, -2.39 }, notchF[3] = { 316.4, 322.0, 328.1 }, tiltDb[3] = { 3.0, 0.0, -4.0 };
+            attackGain = (float) std::pow (10.0, gainDb[attack] / 20.0);
+            // GRUNT : condensateur en serie avec R16 a l'entree de l'inverseur (moins -> plus de graves satures)
+            //   position haute BOOST = C11 + C13 220n, milieu FLAT = C11 + C12 47n, basse CUT = C11 seul
+            const double cg[3] = { 3.69e-9 + 220.0e-9, 3.69e-9 + 47.0e-9, 17.0e-9 };   // CUT : valeur effective (schema 4,7 n) pour retrouver l'ecart mesure CUT / FLAT (~ -5,4 dB)
+            // inverseur CMOS en contre-reaction, gain de boucle ouverte fini A0 :
+            //   H = Zf / Zin = s Cg R18 / ((1 + s R18 C14)(1 + s R16 Cg)) ;  G = A0 H / ((A0 + 1) + H)  (signe ignore)
+            constexpr double A0 = 24.871, R16 = 6.8e3, R18 = 330.0e3, C14 = 220.0e-12;
+            const double C = cg[grunt];
+            const double n1 = A0 * C * R18;
+            const double d0 = A0 + 1.0, d1 = (A0 + 1.0) * (R18 * C14 + R16 * C) + C * R18, d2 = (A0 + 1.0) * R18 * C14 * R16 * C;
             for (int c = 0; c < 2; ++c)
             {
-                preHP[c].highPass (sr, hp[grunt], grunt == 2 ? 0.75 : 0.62);
-                gruntShelf[c].lowShelf (sr, 140.0, 0.7, sh[grunt]);
-                attackShelf[c].highShelf (sr, 2400.0, 0.7, hs[attack]);
-                attackPeak[c].peak (sr, 4200.0, 1.1, pk[attack]);
+                ladderNotch[c].peak (osr, notchF[attack], 1.4, -10.0);
+                attackTilt[c].highShelf (osr, 2500.0, 0.7, tiltDb[attack]);
+                clipLin[c].analog (osr, 0.0, n1, 0.0, d0, d1, d2, 1000.0);
             }
         }
 
         void updateEq (float bassDb, float loDb, float hiDb, float trebDb, float loF, float hiF)
         {
+            // Baxandall : plateau du 1er ordre, extremes +-16 dB, +-12 dB a 100 Hz / 5 kHz (coins 78,7 Hz / 6,35 kHz)
+            const double gb = std::pow (10.0, (bassDb * 16.0 / 12.0) / 20.0), gt = std::pow (10.0, (trebDb * 16.0 / 12.0) / 20.0);
             for (int c = 0; c < 2; ++c)
             {
-                eq[c][0].lowShelf (sr, 100.0, 0.707, bassDb);
+                eq[c][0].lowShelf1 (sr, 78.7, gb);
                 eq[c][1].peak (sr, loF, 0.9, loDb);
                 eq[c][2].peak (sr, hiF, 0.9, hiDb);
-                eq[c][3].highShelf (sr, juce::jmin (5000.0, 0.4 * sr), 0.707, trebDb);
+                eq[c][3].highShelf1 (sr, juce::jmin (6350.0, 0.42 * sr), gt);
             }
         }
 
         void processChunk (float* const* io, int numCh, int n, const Params& p)
         {
-            updatePreFilters (juce::jlimit (0, 2, p.grunt), juce::jlimit (0, 2, p.attack));
+            updateSwitches (juce::jlimit (0, 2, p.grunt), juce::jlimit (0, 2, p.attack));
             const float loTarget = std::log2 (std::array<float, 3> { 1000.0f, 500.0f, 250.0f }[(size_t) juce::jlimit (0, 2, p.loFreq)]);
             const float hiTarget = std::log2 (std::array<float, 3> { 3000.0f, 1500.0f, 750.0f }[(size_t) juce::jlimit (0, 2, p.hiFreq)]);
             if (first)
@@ -214,90 +269,79 @@ namespace darkbass
                 first = false;
             }
 
-            // 1. entree : copie du signal sec (bypass), voie claire et voie saturee
-            float driveG[kChunk], driveMk[kChunk];
+            // 1. entree en volts ; voie claire et sec retardes de la latence du sur-echantillonnage
             for (int c = 0; c < 2; ++c)
             {
                 const float* in = io[juce::jmin (c, numCh - 1)];
-                float* d = driveBuf.getWritePointer (c);
+                float* od = odBuf.getWritePointer (c);
                 float* cl = cleanBuf.getWritePointer (c);
                 float* dry = dryBuf.getWritePointer (c);
+                auto& dl = delay[c];
                 for (int i = 0; i < n; ++i)
                 {
                     const float x = in[i];
-                    // ligne a retard commune (voie claire + bypass alignes sur la voie sur-echantillonnee)
-                    auto& dl = delay[c];
                     const int w = (delayPos + i) & (kDelay - 1);
                     dl[(size_t) w] = x;
                     const float xd = dl[(size_t) ((w - latency) & (kDelay - 1))];
                     dry[i] = xd;
-                    cl[i] = inDC[c].process (xd);
-                    float y = preHP[c].process (x);
-                    y = gruntShelf[c].process (y);
-                    y = attackShelf[c].process (y);
-                    d[i] = attackPeak[c].process (y);
+                    cl[i] = (float) inDC[c].process (xd);
+                    od[i] = x * (float) kVolts;
                 }
             }
             delayPos = (delayPos + n) & (kDelay - 1);
 
-            // gain d'entree de la saturation (DRIVE), lisse par echantillon
-            for (int i = 0; i < n; ++i)
-            {
-                const float dv = juce::jlimit (0.0f, 1.0f, sDrive.next (p.drive) / 10.0f);
-                driveG[i] = std::pow (10.0f, (2.0f + 44.0f * std::pow (dv, 1.35f)) / 20.0f);
-                // compensation de volume de la voie saturee (mesuree, tools/render) : LEVEL a midi ~ voie claire
-                // a DRIVE midi ; le volume monte encore un peu avec le DRIVE (+6 dB de 0 a 10), comme sur la pedale
-                static constexpr float adj[5] = { 6.3f, 1.5f, -5.5f, -10.2f, -10.3f };
-                const float fi = dv * 4.0f; const int i0 = juce::jmin (3, (int) fi); const float fr = fi - (float) i0;
-                driveMk[i] = std::pow (10.0f, (adj[i0] + (adj[i0 + 1] - adj[i0]) * fr) / 20.0f);
-            }
-            for (int c = 0; c < 2; ++c)
-            {
-                float* d = driveBuf.getWritePointer (c);
-                for (int i = 0; i < n; ++i) d[i] *= driveG[i];
-            }
+            // gain DRIVE (lisse), interpole sur la cadence x4
+            float dg[kChunk];
+            for (int i = 0; i < n; ++i) dg[i] = driveGain (sDrive.next (p.drive));
 
-            // 2. saturation x4
+            // 2. voie saturee x4
             {
-                juce::dsp::AudioBlock<float> blk (driveBuf.getArrayOfWritePointers(), 2, (size_t) n);
+                juce::dsp::AudioBlock<float> blk (odBuf.getArrayOfWritePointers(), 2, (size_t) n);
                 auto up = os->processSamplesUp (blk);
                 const int un = (int) up.getNumSamples();
+                const int f = 1 << kOS;
+                const double ag = attackGain * kLadder;
                 for (int c = 0; c < 2; ++c)
                 {
                     float* u = up.getChannelPointer ((size_t) c);
                     for (int i = 0; i < un; ++i)
                     {
-                        float y = cmos (u[i] * 0.55f);                 // 1er etage
-                        y = stage1LP[c].process (y);
-                        y = mid1DC[c].process (y);
-                        y = cmos (y * 2.4f);                           // 2e etage (plus serre)
-                        u[i] = y;
+                        double v = hpC2[c].process ((double) u[i]);
+                        v = jfetShelf[c].process (v);
+                        v = jfetDC[c].process (softClip (v, 2.0111, 0.65743));     // J201 : plafonds asymetriques (harmoniques paires)
+                        v = ladderNotch[c].process (v * ag);
+                        v = attackTilt[c].process (v);
+                        v = hpC7[c].process (v);
+                        v = driveLP[c].process (v * (double) dg[juce::jmin (n - 1, i / f)]);
+                        v = softClip (v, 2.7, 2.9);                                // rails de l'ampli op (alim 9 V)
+                        v = clipLin[c].process (v);                                // GRUNT + inverseur CMOS (lineaire)
+                        v = softClip (v, 2.98, 2.66);                              // inverseur CMOS : seuil 2,66 V sur rail 5,64 V
+                        u[i] = (float) c15[c].process (v);
                     }
                 }
                 os->processSamplesDown (blk);
             }
 
-            // 3. filtre de sortie, LEVEL, BLEND, footswitch DRIVE
+            // 3. filtres de sortie, LEVEL, BLEND (fondu lineaire du potard), footswitch DRIVE
             float* mix[2] = { cleanBuf.getWritePointer (0), cleanBuf.getWritePointer (1) };
-            // (driveMk est calcule plus haut, echantillon par echantillon)
             for (int i = 0; i < n; ++i)
             {
                 const float b = juce::jlimit (0.0f, 1.0f, sBlend.next (p.blend) / 10.0f);
                 const float on = sDriveOn.next (p.driveOn ? 1.0f : 0.0f);
-                const float lv = gainLaw (sLevel.next (p.level)) * kDriveMakeup;
-                const float cg = 1.0f + (std::cos (b * juce::MathConstants<float>::halfPi) - 1.0f) * on;
-                const float dg = std::sin (b * juce::MathConstants<float>::halfPi) * on * lv * driveMk[i];
+                const float lv = levelTaper (sLevel.next (p.level)) * (float) (kOdTrim / kVolts);
+                const float cg = 1.0f - b * on;
+                const float og = b * on * lv;
                 for (int c = 0; c < 2; ++c)
                 {
-                    float y = driveBuf.getSample (c, i);
-                    y = postLP[c].process (y);
-                    y = postLP2[c].process (y);
-                    y = outDC[c].process (y);
-                    mix[c][i] = mix[c][i] * cg + y * dg;
+                    double y = odBuf.getSample (c, i);
+                    y = bridgedT[c].process (y);
+                    y = sk1[c].process (y);
+                    y = sk2[c].process (y);
+                    mix[c][i] = mix[c][i] * cg + (float) y * og;
                 }
             }
 
-            // 4. EQ 4 bandes (coefficients recalcules tous les 16 echantillons, valeurs lissees)
+            // 4. C21 + EQ 4 bandes (coefficients recalcules tous les 16 echantillons, valeurs lissees)
             for (int i0 = 0; i0 < n; i0 += 16)
             {
                 const int len = juce::jmin (16, n - i0);
@@ -311,28 +355,27 @@ namespace darkbass
                 for (int c = 0; c < 2; ++c)
                     for (int k = i0; k < i0 + len; ++k)
                     {
-                        float y = mix[c][k];
+                        double y = c21[c].process (mix[c][k]);
                         for (auto& bq : eq[c]) y = bq.process (y);
-                        mix[c][k] = y;
+                        mix[c][k] = (float) y;
                     }
             }
 
             // 5. simulation de baffle (IR), en fondu
-            float cabEnd = 0.0f;
             {
-                float cabStart = sCab.s2;
+                const float cabStart = sCab.s2;
+                float cabEnd = cabStart;
                 for (int i = 0; i < n; ++i) cabEnd = sCab.next (p.cab ? 1.0f : 0.0f);
                 if (cabStart > 1.0e-4f || cabEnd > 1.0e-4f)
                 {
-                    // copie du signal sans IR dans driveBuf (libre a ce stade)
-                    for (int c = 0; c < 2; ++c) driveBuf.copyFrom (c, 0, cleanBuf, c, 0, n);
+                    for (int c = 0; c < 2; ++c) tmpBuf.copyFrom (c, 0, cleanBuf, c, 0, n);
                     juce::dsp::AudioBlock<float> blk (cleanBuf.getArrayOfWritePointers(), 2, (size_t) n);
                     conv.process (juce::dsp::ProcessContextReplacing<float> (blk));
                     for (int c = 0; c < 2; ++c)
                         for (int i = 0; i < n; ++i)
                         {
                             const float t = cabStart + (cabEnd - cabStart) * ((float) (i + 1) / (float) n);
-                            mix[c][i] = driveBuf.getSample (c, i) * (1.0f - t) + mix[c][i] * t * kCabMakeup;
+                            mix[c][i] = tmpBuf.getSample (c, i) * (1.0f - t) + mix[c][i] * t * kCabMakeup;
                         }
                 }
                 else if (! convIdle) { conv.reset(); }
@@ -347,56 +390,65 @@ namespace darkbass
                 for (int c = 0; c < numCh; ++c)
                 {
                     const float wet = mix[c][i] * m;
-                    float y = dryBuf.getSample (c, i) + (wet - dryBuf.getSample (c, i)) * a;
+                    const float y = dryBuf.getSample (c, i) + (wet - dryBuf.getSample (c, i)) * a;
                     io[c][i] = std::isfinite (y) ? y : 0.0f;
                 }
             }
         }
 
-        static constexpr float kDriveMakeup = 0.42f;   // gain fixe de la voie saturee (voir driveMk)
-        static constexpr float kCabMakeup = 2.55f;    // IR normalisee : meme volume avec ou sans CAB SIM
+        // T ponte (R22 100k, R23 33k, C16 680p, C17 22n), charge haute impedance, normalise par R23 :
+        //   H(s) = (1 + s tau (R22+R23)/R23 + s^2 tau C17 R22) / (1 + s (C17 R22 + tau (R22+R23)/R23) + s^2 tau C17 R22), tau = R23 C16
+        static constexpr double kBtTau = 33.0e3 * 680.0e-12;
+        static constexpr double kBtN0 = 1.0;
+        static constexpr double kBtN1 = kBtTau * 133.0e3 / 33.0e3;
+        static constexpr double kBtN2 = kBtTau * 22.0e-9 * 100.0e3;
+        static constexpr double kBtD1 = 22.0e-9 * 100.0e3 + kBtN1;
+        static constexpr double kBtD2 = kBtN2;
+        static constexpr double kLadder = 0.0225;      // echelle d'aigus + R7 / R8 : clair -> IC2_A ~ -8,5 dB au maximum (avec le gain du JFET)
+        static constexpr double kOdTrim = 2.95;        // calibrage : LEVEL et DRIVE a midi ~ meme volume que la voie claire (basse a -18 dBFS)
+        static constexpr float kCabMakeup = 2.55f;     // IR normalisee : meme volume avec ou sans CAB SIM
         static constexpr int kDelay = 256;
 
         void makeBuiltInIR()
         {
-            // baffle basse 4 x 10 + tweeter coupe (IR synthetique, 2048 echantillons) : resonance ~ 70 Hz, creux ~ 400 Hz,
-            // presence ~ 1,8 kHz, coupure progressive au-dessus de 4 kHz
+            // baffle basse 4 x 10 + tweeter coupe (IR synthetique, 2048 echantillons)
             const int len = 2048;
             builtInIR.setSize (1, len);
             builtInIR.clear();
             float* d = builtInIR.getWritePointer (0);
             d[0] = 1.0f;
             Biquad f[6];
-            f[0].highPass (sr, 48.0, 1.1);
+            const double w48 = 2 * juce::MathConstants<double>::pi * 48.0;
+            f[0].analog (sr, 0, 0, 1, w48 * w48, w48 / 1.1, 1, 48.0);
             f[1].peak (sr, 75.0, 1.2, 3.0);
             f[2].peak (sr, 420.0, 1.0, -4.0);
             f[3].peak (sr, 1800.0, 1.4, 3.0);
-            f[4].lowPass (sr, juce::jmin (4300.0, 0.4 * sr), 0.8);
-            f[5].lowPass (sr, juce::jmin (6500.0, 0.42 * sr), 0.6);
+            f[4].lowPassQ (sr, juce::jmin (4300.0, 0.4 * sr), 0.8);
+            f[5].lowPassQ (sr, juce::jmin (6500.0, 0.42 * sr), 0.6);
             for (int i = 0; i < len; ++i)
             {
-                float y = d[i];
+                double y = d[i];
                 for (auto& b : f) y = b.process (y);
-                d[i] = y;
+                d[i] = (float) y;
             }
-            // tres courte premiere reflexion (caisse fermee)
             const int r = (int) (0.0011 * sr);
             for (int i = len - 1; i >= r; --i) d[i] += 0.18f * d[i - r];
             for (int i = len - 256; i < len; ++i) d[i] *= (float) (len - i) / 256.0f;
         }
 
-        double sr = 48000.0;
+        double sr = 48000.0, osr = 192000.0;
         int latency = 0;
         std::unique_ptr<juce::dsp::Oversampling<float>> os;
-        DCBlock inDC[2], mid1DC[2], outDC[2];
-        Biquad preHP[2], gruntShelf[2], attackShelf[2], attackPeak[2], stage1LP[2], postLP[2], postLP2[2];
+        Biquad hpC2[2], jfetShelf[2], jfetDC[2], ladderNotch[2], attackTilt[2], hpC7[2], driveLP[2], clipLin[2], c15[2];
+        Biquad bridgedT[2], sk1[2], sk2[2], c21[2], inDC[2];
         Biquad eq[2][4];
+        float attackGain = 1.0f;
         float delay[2][kDelay] {};
         int delayPos = 0;
         Smooth2 sMaster, sBlend, sLevel, sDrive, sBass, sLo, sHi, sTreb, sActive, sDriveOn, sCab, sLoF, sHiF;
         bool first = true, convIdle = true;
         int cachedGrunt = -1, cachedAttack = -1;
-        juce::AudioBuffer<float> driveBuf, cleanBuf, dryBuf, builtInIR;
+        juce::AudioBuffer<float> odBuf, cleanBuf, dryBuf, tmpBuf, builtInIR;
         juce::dsp::Convolution conv;
         std::atomic<bool> userIRLoaded { false };
     };

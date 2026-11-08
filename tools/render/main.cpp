@@ -16,7 +16,10 @@ static double runRms (DarkbassAudioProcessor& proc, double sr, double f0 = 55.0,
         {
             const double t = (blk * 512 + i) / sr;
             const float env = (float) (0.35 + 0.65 * std::exp (-std::fmod (t, 0.5) * 6.0));
-            const float x = 0.17f * env * (float) (std::sin (ph) + 0.5 * std::sin (2 * ph + 0.3) + 0.25 * std::sin (3 * ph + 1.1) + 0.12 * std::sin (5 * ph));
+            // basse en cordes filees : dent de scie limitee (harmoniques 1..48 en 1/n, pente -6 dB/oct) avec attaque
+            double sw = 0.0;
+            for (int h = 1; h <= 48 && h * f0 < 0.45 * sr; ++h) sw += std::sin (h * ph + 0.37 * h) / h;
+            const float x = 0.17f * env * (float) sw;
             ph += 2 * MathConstants<double>::pi * f0 / sr;
             b.setSample (0, i, x); b.setSample (1, i, x);
         }
@@ -50,7 +53,9 @@ int main (int argc, char** argv)
         {
             const double t = i / 48000.0;
             const double env = 0.35 + 0.65 * std::exp (-std::fmod (t, 0.5) * 6.0);
-            const double x = 0.17 * env * (std::sin (ph) + 0.5 * std::sin (2 * ph + 0.3) + 0.25 * std::sin (3 * ph + 1.1) + 0.12 * std::sin (5 * ph));
+            double sw = 0.0;
+            for (int h = 1; h <= 48 && h * 55.0 < 21600.0; ++h) sw += std::sin (h * ph + 0.37 * h) / h;
+            const double x = 0.17 * env * sw;
             ph += 2 * MathConstants<double>::pi * 55.0 / 48000.0; sum += x * x; ++n;
         }
         std::printf ("entree : %.1f dB RMS\n", 10 * std::log10 (sum / n));
@@ -67,7 +72,29 @@ int main (int argc, char** argv)
         double pk; const double r = runRms (proc, 48000.0, 55.0, true, &pk);
         std::printf ("sature seul drive %4.1f level 5      : %.1f dB  (crete %.2f)\n", d, r, pk);
     }
-    set (proc, "drive", 5); set (proc, "blend", 5); pump (3);
+    set (proc, "drive", 5); pump (3);
+    for (int g = 0; g < 3; ++g) { set (proc, "grunt", (float) g); pump (3); std::printf ("sature seul grunt %d (0 boost, 2 cut)    : %.1f dB\n", g, runRms (proc, 48000.0)); }
+    set (proc, "grunt", 1);
+    for (int a = 0; a < 3; ++a) { set (proc, "attack", (float) a); pump (3); std::printf ("sature seul attack %d (0 boost, 2 cut)   : %.1f dB\n", a, runRms (proc, 48000.0)); }
+    set (proc, "attack", 1);
+    // reponse en frequence de la voie saturee, petit signal (drive 0) : sinus purs
+    {
+        set (proc, "drive", 0); pump (3);
+        for (double f : { 50.0, 100.0, 200.0, 320.0, 500.0, 717.0, 1000.0, 2000.0, 3000.0, 5000.0 })
+        {
+            double ph = 0, s2 = 0; long cnt = 0;
+            for (int blk = 0; blk < 120; ++blk)
+            {
+                AudioBuffer<float> b (2, 512); MidiBuffer m;
+                for (int i = 0; i < 512; ++i) { const float x = 0.01f * (float) std::sin (ph); ph += 2 * MathConstants<double>::pi * f / 48000.0; b.setSample (0, i, x); b.setSample (1, i, x); }
+                proc.processBlock (b, m);
+                if (blk > 40) for (int i = 0; i < 512; ++i) { s2 += b.getSample (0, i) * b.getSample (0, i); ++cnt; }
+            }
+            std::printf ("  OD petit signal %6.0f Hz : %6.1f dB (re entree)\n", f, 10 * std::log10 (s2 / cnt / 0.00005));
+        }
+        set (proc, "drive", 5); pump (3);
+    }
+    set (proc, "blend", 5); pump (3);
     std::printf ("blend 5                              : %.1f dB\n", runRms (proc, 48000.0));
     set (proc, "active", 0); pump (3);
     std::printf ("bypass                               : %.1f dB\n", runRms (proc, 48000.0));

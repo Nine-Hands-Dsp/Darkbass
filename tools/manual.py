@@ -18,7 +18,7 @@ from reportlab.pdfbase.ttfonts import TTFont
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SHOTS = sys.argv[1] if len(sys.argv) > 2 else None
 OUT = sys.argv[-1]
-VERSION = "1.0.4"
+VERSION = "1.1.0"
 import tempfile
 TMP = tempfile.mkdtemp()
 FONTS = os.path.join(ROOT, "assets", "fonts")
@@ -142,15 +142,15 @@ def table(rows, widths, header=True):
 
 # ---------- donnees (identiques a PluginProcessor.cpp) ----------
 FACTORY = [  # nom, master, blend, level, drive, bass, lomids, himids, treble, grunt, lo, hi, attack, driveOn
-    ("Modern Growl",   5.15, 6.0, 5.0, 6.0, 6.0, 4.5, 6.0, 6.0, 1, 1, 0, 0, 1),
-    ("Clean DI",       5.25, 0.0, 5.0, 3.0, 5.5, 5.0, 5.5, 5.5, 1, 1, 1, 1, 0),
-    ("Clank & Grind",  5.65, 5.5, 5.5, 4.0, 5.0, 4.0, 6.5, 6.5, 1, 1, 0, 0, 1),
-    ("Tight Djent",    6.8,  7.0, 5.0, 7.5, 5.5, 3.5, 6.0, 6.5, 2, 1, 1, 0, 1),
-    ("Doom Wall",      3.65, 8.0, 5.0, 9.0, 6.5, 5.5, 5.0, 4.0, 0, 2, 2, 2, 1),
-    ("Upright Warmth", 4.1,  2.0, 5.0, 2.0, 6.0, 6.0, 3.5, 3.5, 0, 2, 2, 2, 1),
-    ("Slap Bright",    4.85, 1.0, 5.0, 3.0, 6.5, 3.5, 6.5, 7.0, 1, 1, 0, 0, 1),
-    ("Scooped Metal",  3.45, 6.5, 5.0, 7.0, 7.0, 3.0, 4.5, 7.0, 0, 1, 1, 0, 1),
-    ("Mid Punch Rock", 5.6,  4.5, 5.0, 5.0, 5.5, 6.5, 6.0, 5.0, 1, 0, 1, 1, 1),
+    ("Modern Growl",   4.78, 6.0, 5.0, 6.0, 6.0, 4.5, 6.0, 6.0, 1, 1, 0, 0, 1),
+    ("Clean DI",       4.87, 0.0, 5.0, 3.0, 5.5, 5.0, 5.5, 5.5, 1, 1, 1, 1, 0),
+    ("Clank & Grind",  5.72, 5.5, 5.5, 4.0, 5.0, 4.0, 6.5, 6.5, 1, 1, 0, 0, 1),
+    ("Tight Djent",    4.96,  7.0, 5.0, 7.5, 5.5, 3.5, 6.0, 6.5, 2, 1, 1, 0, 1),
+    ("Doom Wall",      3.59, 8.0, 5.0, 9.0, 6.5, 5.5, 5.0, 4.0, 0, 2, 2, 2, 1),
+    ("Upright Warmth", 5.16,  2.0, 5.0, 2.0, 6.0, 6.0, 3.5, 3.5, 0, 2, 2, 2, 1),
+    ("Slap Bright",    4.68, 1.0, 5.0, 3.0, 6.5, 3.5, 6.5, 7.0, 1, 1, 0, 0, 1),
+    ("Scooped Metal",  3.59, 6.5, 5.0, 7.0, 7.0, 3.0, 4.5, 7.0, 0, 1, 1, 0, 1),
+    ("Mid Punch Rock", 6.25,  4.5, 5.0, 5.0, 5.5, 6.5, 6.0, 5.0, 1, 0, 1, 1, 1),
     ("All Noon",       5.0,  5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 1, 1, 1, 1, 1)]
 GA = {"en": ["boost", "flat", "cut"], "fr": ["boost", "flat", "cut"]}
 LOF, HIF = ["1 kHz", "500 Hz", "250 Hz"], ["3 kHz", "1.5 kHz", "750 Hz"]
@@ -182,7 +182,7 @@ T = {
  lang="ENGLISH", sub="Bass preamp / overdrive · double pedal format", ver="User manual · version " + VERSION,
  intro_t="1. Introduction",
  intro=["<b>Darkbass</b> is a VST3 bass preamp and overdrive in the NINE HANDS | DSP double pedal format. It recreates the "
-        "Darkglass Microtubes B7K Ultra v2: a clean path at unity gain and a separate CMOS overdrive path (the « microtubes » "
+        "Darkglass Microtubes B7K Ultra v2: a clean path at unity gain and a separate overdrive path built around a CMOS inverter (the « microtubes » "
         "sound), mixed with BLEND, then shaped by a 4-band EQ with switchable mid frequencies.",
         "Two footswitches, like the original: BYPASS turns the whole pedal on or off, DRIVE engages the overdrive section "
         "independently, so the clean preamp and its EQ can stay on all the time. GRUNT and ATTACK set how much low end and "
@@ -208,23 +208,31 @@ T = {
  ctl_t="4. Controls",
  ctl=[("MASTER", "Output level of the whole pedal. Noon = unity (0 dB), fully left = silence, fully right = +12 dB. "
                  "Use it to match the bypassed level."),
-      ("BLEND", "Mix between the clean path (always at unity gain) and the overdrive path, at equal power. 0 = clean only, "
-                "10 = overdrive only. Keeping some clean signal preserves the attack and the low end under heavy drive. "
-                "Ignored when the DRIVE footswitch is off."),
-      ("LEVEL", "Level of the overdrive path only. At noon, the overdrive is about as loud as the clean path with DRIVE at noon; "
-                "it gets a little louder as DRIVE goes up, like on the pedal."),
-      ("DRIVE", "Gain before the two CMOS « microtubes » stages (asymmetric, 4x oversampled): from a light grit at 0 to a dense, "
-                "compressed distortion at 10."),
+      ("BLEND", "Linear crossfade between the clean path (always at unity gain) and the overdrive path, like the pedal's "
+                "potentiometer: 0 = clean only, 10 = overdrive only, around noon each path is about 6 dB down, so the sum can be "
+                "a little quieter than either end. Keeping some clean signal preserves the attack and the low end under heavy "
+                "drive. Ignored when the DRIVE footswitch is off."),
+      ("LEVEL", "Level of the overdrive path only (audio-taper law, as on the pedal). At noon, the overdrive is about as loud as "
+                "the clean path with DRIVE at noon. The overdrive gets clearly louder as DRIVE goes up, as on the original."),
+      ("DRIVE", "Gain of the op-amp stage in front of the clipper, ×4 to ×78 (reverse-log potentiometer law). The signal first "
+                "goes through a J201 JFET stage (soft, asymmetric), then the op-amp (which itself clips on its rails at high "
+                "settings), then a single CD4049UBE CMOS inverter in a feedback loop: the « microtubes » distortion. All of it is "
+                "4x oversampled. From a light grit at 0 to a dense, compressed distortion at 10."),
       ("BASS / TREBLE", "±12 dB shelving filters at 100 Hz and 5 kHz."),
       ("LO MIDS / HI MIDS", "±12 dB bell filters. LO FREQ selects 1 kHz, 500 Hz or 250 Hz, HI FREQ selects 3 kHz, 1.5 kHz or 750 Hz "
                             "(switch up / middle / down). Frequency changes glide smoothly, without clicks."),
       ("EQ curve", "All four EQ knobs follow the same continuous curve: no step or change of slope at noon, finer around noon "
                    "and faster towards the ends. The EQ acts on the mix, clean signal included, so it also shapes the clean "
                    "preamp when DRIVE is off."),
-      ("GRUNT", "How much low end goes into the clipping. BOOST: +9 dB shelf at 140 Hz, a heavy, thick grind. FLAT: neutral. "
-                "CUT: lows removed below about 190 Hz before clipping, a tight, modern distortion that leaves the clean lows to BLEND."),
-      ("ATTACK", "How much treble goes into the clipping. BOOST: +8 dB above 2.4 kHz with extra presence, more clarity and clank. "
-                 "FLAT: neutral. CUT: −9 dB, a warmer, smoother distortion.")],
+      ("GRUNT", "Three levels of bass going into the clipper, set by the capacitor in front of the CMOS inverter (as on the "
+                "pedal). BOOST: the most low end, a heavy, thick grind. FLAT: the middle level. CUT: the least low end, about 5 dB "
+                "below FLAT, a tight, modern distortion that leaves the clean lows to BLEND."),
+      ("ATTACK", "How much signal, and treble, goes into the clipping. BOOST: about +8.7 dB into the drive with a little extra "
+                 "treble, more clarity, presence and clank. FLAT: neutral. CUT: about −2.4 dB and less treble, a warmer, smoother "
+                 "distortion."),
+      ("Overdrive tone", "After the clipper, the overdrive path is shaped like the original circuit: a bridged-T network digs a "
+                         "mid scoop centred around 720 Hz, then two low-pass filters (10.7 kHz and 3.3 kHz) round off the fizz. "
+                         "The overdrive is deliberately light in low end; the clean path brings the lows back through BLEND.")],
  tog_cap="The four 3-position switches. Click the upper half of a switch to move it up, the lower half to move it down (or use the mouse wheel).",
  fs_t="5. Footswitches, LEDs and MIDI",
  fs=["<b>BYPASS</b> (left): turns the whole pedal on or off. Off = the input signal, delay-compensated, so nothing moves in "
@@ -273,7 +281,7 @@ T = {
  tech_t="10. Technical specifications",
  tech=[["Format", "VST3 (Windows 64-bit, macOS universal)"], ["Channels", "Mono or stereo"],
        ["Latency", "61 samples (4x linear-phase oversampling), reported to the DAW; clean and bypass paths are delay-compensated"],
-       ["Overdrive", "Two asymmetric CMOS stages, 4x oversampled, gain +2 to +46 dB, GRUNT / ATTACK pre-filters"],
+       ["Overdrive", "J201 JFET stage, op-amp gain ×4 to ×78, one CD4049UBE CMOS inverter (finite open-loop gain), 4x oversampled; bridged-T mid scoop ~720 Hz, low-pass 10.7 kHz + 3.3 kHz"],
        ["EQ", "Bass 100 Hz, Lo mids 250 / 500 / 1k, Hi mids 750 / 1.5k / 3k, Treble 5 kHz, ±12 dB each"],
        ["Cab sim", "Built-in bass 4x10 IR or user WAV / AIFF (zero-latency convolution)"],
        ["MIDI", "MIDI Learn on all 15 controls (saved with the project), no CC by default, 14-bit on CC n+32, Program Change 1-10, all channels"],
@@ -283,7 +291,7 @@ T = {
  lang="FRANÇAIS", sub="Préampli basse / overdrive · format pédale double", ver="Notice d'utilisation · version " + VERSION,
  intro_t="1. Présentation",
  intro=["<b>Darkbass</b> est un préampli basse avec saturation au format VST3, en pédale double NINE HANDS | DSP. Il reproduit la "
-        "Darkglass Microtubes B7K Ultra v2 : une voie claire à gain unitaire et une voie saturée CMOS séparée (le son "
+        "Darkglass Microtubes B7K Ultra v2 : une voie claire à gain unitaire et une voie saturée séparée, bâtie autour d'un inverseur CMOS (le son "
         "« microtubes »), mélangées par BLEND, puis sculptées par un EQ 4 bandes à fréquences de médiums commutables.",
         "Deux footswitchs, comme sur l'original : BYPASS allume ou coupe toute la pédale, DRIVE active la saturation "
         "indépendamment, pour garder en permanence le préampli clair et son EQ. GRUNT et ATTACK règlent la quantité de graves "
@@ -309,24 +317,34 @@ T = {
  ctl_t="4. Les commandes",
  ctl=[("MASTER", "Volume de sortie de toute la pédale. Midi = gain unitaire (0 dB), tout à gauche = silence, tout à droite = +12 dB. "
                  "Permet d'égaliser avec le niveau en bypass."),
-      ("BLEND", "Mélange entre la voie claire (toujours à gain unitaire) et la voie saturée, à puissance égale. 0 = clair seul, "
-                "10 = saturé seul. Garder un peu de clair conserve l'attaque et les graves sous une forte saturation. "
-                "Sans effet quand le footswitch DRIVE est coupé."),
-      ("LEVEL", "Volume de la voie saturée seule. À midi, la saturation sort à peu près au même volume que la voie claire avec "
-                "DRIVE à midi ; elle monte un peu quand on tourne DRIVE, comme sur la pédale."),
-      ("DRIVE", "Gain avant les deux étages CMOS « microtubes » (asymétriques, sur-échantillonnés x4) : d'un léger grain à 0 "
-                "jusqu'à une distorsion dense et compressée à 10."),
+      ("BLEND", "Fondu linéaire entre la voie claire (toujours à gain unitaire) et la voie saturée, comme le potentiomètre de la "
+                "pédale : 0 = clair seul, 10 = saturé seul ; vers midi chaque voie est baissée d'environ 6 dB, le mélange peut donc "
+                "sortir un peu moins fort que les deux extrêmes. Garder un peu de clair conserve l'attaque et les graves sous une "
+                "forte saturation. Sans effet quand le footswitch DRIVE est coupé."),
+      ("LEVEL", "Volume de la voie saturée seule (loi logarithmique, comme sur la pédale). À midi, la saturation sort à peu près "
+                "au même volume que la voie claire avec DRIVE à midi. Elle monte nettement quand on tourne DRIVE, comme sur "
+                "l'original."),
+      ("DRIVE", "Gain de l'étage à ampli op placé avant l'écrêteur, de ×4 à ×78 (loi de potentiomètre logarithmique inverse). Le "
+                "signal passe d'abord dans un étage JFET J201 (saturation douce, asymétrique), puis dans l'ampli op (qui écrête "
+                "lui-même sur ses rails aux réglages élevés), puis dans un seul inverseur CMOS CD4049UBE en contre-réaction : la "
+                "saturation « microtubes ». Le tout est sur-échantillonné x4. D'un léger grain à 0 jusqu'à une distorsion dense "
+                "et compressée à 10."),
       ("BASS / TREBLE", "Filtres en plateau ±12 dB à 100 Hz et 5 kHz."),
       ("LO MIDS / HI MIDS", "Filtres en cloche ±12 dB. LO FREQ choisit 1 kHz, 500 Hz ou 250 Hz, HI FREQ choisit 3 kHz, 1,5 kHz ou "
                             "750 Hz (inverseur haut / milieu / bas). Le changement de fréquence glisse en douceur, sans clic."),
       ("Courbe de l'EQ", "Les quatre potards d'EQ suivent la même courbe continue : aucune marche ni changement de pente à midi, "
                           "réglage fin autour de midi, plus rapide vers les butées. L'EQ agit sur le mélange, clair compris : il "
                           "règle aussi le préampli clair quand DRIVE est coupé."),
-      ("GRUNT", "Quantité de graves envoyée dans l'écrêtage. BOOST : plateau +9 dB à 140 Hz, grain lourd et épais. FLAT : neutre. "
-                "CUT : graves retirés sous 190 Hz environ avant l'écrêtage, distorsion serrée et moderne qui laisse les graves "
-                "propres à BLEND."),
-      ("ATTACK", "Quantité d'aigus envoyée dans l'écrêtage. BOOST : +8 dB au-dessus de 2,4 kHz avec plus de présence, plus de "
-                 "clarté et de « clank ». FLAT : neutre. CUT : −9 dB, distorsion plus chaude et plus douce.")],
+      ("GRUNT", "Trois niveaux de graves envoyés dans l'écrêteur, fixés par le condensateur placé devant l'inverseur CMOS (comme "
+                "sur la pédale). BOOST : le plus de graves, grain lourd et épais. FLAT : niveau intermédiaire. CUT : le moins de "
+                "graves, environ 5 dB sous FLAT, distorsion serrée et moderne qui laisse les graves propres à BLEND."),
+      ("ATTACK", "Quantité de signal, et d'aigus, envoyée dans l'écrêtage. BOOST : environ +8,7 dB dans la saturation avec un peu "
+                 "plus d'aigus, plus de clarté, de présence et de « clank ». FLAT : neutre. CUT : environ −2,4 dB et moins "
+                 "d'aigus, distorsion plus chaude et plus douce."),
+      ("Couleur de la saturation", "Après l'écrêteur, la voie saturée est filtrée comme sur le circuit d'origine : un réseau en T "
+                                   "ponté creuse les médiums autour de 720 Hz, puis deux passe-bas (10,7 kHz et 3,3 kHz) arrondissent "
+                                   "le grésillement. La saturation est volontairement légère dans le grave ; la voie claire ramène "
+                                   "les graves via BLEND.")],
  tog_cap="Les quatre inverseurs 3 positions. Clic sur la moitié haute d'un inverseur pour le monter, sur la moitié basse pour le descendre (ou molette de la souris).",
  fs_t="5. Footswitchs, LED et MIDI",
  fs=["<b>BYPASS</b> (gauche) : allume ou coupe toute la pédale. Coupée = le signal d'entrée, compensé en retard, donc rien ne "
@@ -378,7 +396,7 @@ T = {
  tech_t="10. Caractéristiques techniques",
  tech=[["Format", "VST3 (Windows 64 bits, macOS universel)"], ["Canaux", "Mono ou stéréo"],
        ["Latence", "61 échantillons (sur-échantillonnage x4 à phase linéaire), annoncée au DAW ; voies claire et bypass compensées"],
-       ["Saturation", "Deux étages CMOS asymétriques, sur-échantillonnage x4, gain +2 à +46 dB, préfiltres GRUNT / ATTACK"],
+       ["Saturation", "Étage JFET J201, ampli op ×4 à ×78, un inverseur CMOS CD4049UBE (gain de boucle ouverte fini), sur-échantillonnage x4 ; creux de médiums en T ponté ~720 Hz, passe-bas 10,7 kHz + 3,3 kHz"],
        ["EQ", "Bass 100 Hz, Lo mids 250 / 500 / 1k, Hi mids 750 / 1,5k / 3k, Treble 5 kHz, ±12 dB chacun"],
        ["Cab sim", "IR basse 4x10 intégrée ou fichier WAV / AIFF (convolution sans latence)"],
        ["MIDI", "MIDI Learn sur les 15 commandes (sauvegardé avec le projet), aucun CC par défaut, 14 bits sur CC n+32, Program Change 1 à 10, tous canaux"],
