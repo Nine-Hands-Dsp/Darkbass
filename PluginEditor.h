@@ -3,11 +3,13 @@
 #include "PluginProcessor.h"
 #include <juce_gui_basics/juce_gui_basics.h>
 #include "Layout.h"
+#include "NineHandsMenu.h"
 
 //==============================================================================
 // Potards (photo fournie par l'utilisateur, dans le fond : reflets fixes) ; seul le repere blanc peint tourne.
+// Menus clic droit et menu de presets au design d'Octopus (NineHandsMenu.h de FreakOut).
 //==============================================================================
-class DarkKnobLookAndFeel : public juce::LookAndFeel_V4
+class DarkKnobLookAndFeel : public NineHandsMenu::MenuLnf
 {
 public:
     void drawRotarySlider (juce::Graphics&, int x, int y, int w, int h,

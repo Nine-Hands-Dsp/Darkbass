@@ -1,4 +1,5 @@
 // Outil hors plugin : tests audio de DARKBASS + captures PNG de la vraie fenetre (meme code que le plugin).
+#include "BinaryData.h"
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 using namespace juce;
@@ -179,5 +180,29 @@ int main (int argc, char** argv)
     shot ("darkbass_status",  3, true,  false, true,  DarkbassAudioProcessorEditor::refH);
     shot ("darkbass_bypass",  1, false, true,  false, DarkbassAudioProcessorEditor::refH);
     ed.reset();
+    // apercu du menu clic droit (meme LookAndFeel que l editeur)
+    {
+        DarkKnobLookAndFeel l;
+        l.reg = l.med = Typeface::createSystemTypefaceFor (BinaryData::PoppinsMedium_ttf, BinaryData::PoppinsMedium_ttfSize);
+        l.bold = Typeface::createSystemTypefaceFor (BinaryData::PoppinsBold_ttf, BinaryData::PoppinsBold_ttfSize);
+        struct It { String t; bool sep, sub, tick, act, hi; };
+        std::vector<It> items { { "Learn: DRIVE (none)", 0,0,0,1,0 }, { "Clear MIDI for DRIVE", 0,0,0,1,0 }, { "", 1,0,0,0,0 },
+            { "Plugin size", 0,1,0,1,1 }, { "", 1,0,0,0,0 }, { "Factory presets", 0,1,0,1,0 }, { "Load user preset", 0,1,0,1,0 },
+            { "Save user preset", 0,1,0,1,0 }, { "", 1,0,0,0,0 }, { "Cab sim", 0,1,0,1,0 }, { "Settings", 0,1,0,1,0 },
+            { "MIDI map", 0,1,0,1,0 }, { "", 1,0,0,0,0 }, { "Hold footswitch = momentary", 0,0,1,1,0 },
+            { "Darkbass v" + String (JucePlugin_VersionString) + " - NINE HANDS | DSP", 0,0,0,0,0 } };
+        int W = 0, H = 14;
+        for (auto& it : items) { int w, h; l.getIdealPopupMenuItemSize (it.t, it.sep, 0, w, h); W = jmax (W, w); H += h; }
+        W += 14;
+        Image img (Image::ARGB, W * 2, H * 2, true);
+        { Graphics g (img); g.addTransform (AffineTransform::scale (2.0f));
+          l.drawPopupMenuBackground (g, W, H);
+          int y = 7;
+          for (auto& it : items) { int w, h; l.getIdealPopupMenuItemSize (it.t, it.sep, 0, w, h);
+              l.drawPopupMenuItem (g, { 7, y, W - 14, h }, it.sep, it.act, it.hi, it.tick, it.sub, it.t, {}, nullptr, nullptr); y += h; } }
+        File f (out + "/darkbass_menu.png"); f.deleteFile();
+        FileOutputStream os (f); PNGImageFormat().writeImageToStream (img, os);
+        std::printf ("%s\n", f.getFullPathName().toRawUTF8());
+    }
     return 0;
 }

@@ -191,6 +191,8 @@ DarkbassAudioProcessorEditor::DarkbassAudioProcessorEditor (DarkbassAudioProcess
     const auto strip = ImageCache::getFromMemory (BinaryData::toggle_strip_png, BinaryData::toggle_strip_pngSize);
     bypassFs.reflection = driveFs.reflection = refl;
     labelFace = Typeface::createSystemTypefaceFor (BinaryData::PoppinsMedium_ttf, BinaryData::PoppinsMedium_ttfSize);
+    lnf.reg = lnf.med = labelFace;
+    lnf.bold = Typeface::createSystemTypefaceFor (BinaryData::PoppinsBold_ttf, BinaryData::PoppinsBold_ttfSize);
 
     // index des commandes = learnDef du processeur (0-7 potards, 8-11 inverseurs, 12 cab, 13 bypass, 14 drive)
     rightClickFwd.callback = [this] (Component* c)
@@ -602,6 +604,7 @@ void DarkbassAudioProcessorEditor::showPresetMenu()
     }
     m.addSubMenu ("Load user preset", load);
     m.addSubMenu ("Save user preset", save);
+    m.setLookAndFeel (&lnf);
     m.showMenuAsync (PopupMenu::Options().withTargetScreenArea (localAreaToGlobal (scaled (presetRect))),
         [safe = Component::SafePointer<DarkbassAudioProcessorEditor> (this)] (int r)
         {
@@ -725,7 +728,8 @@ void DarkbassAudioProcessorEditor::showContextMenu (int learnIdx)
     menu.addSeparator();
     menu.addItem (999, "Darkbass v" + String (JucePlugin_VersionString) + " - NINE HANDS | DSP", false);
 
-    menu.showMenuAsync (PopupMenu::Options().withTargetComponent (this),
+    menu.setLookAndFeel (&lnf);
+    menu.showMenuAsync (PopupMenu::Options().withMousePosition(),    // menu clic droit : toujours la ou l on clique
         [safe = Component::SafePointer<DarkbassAudioProcessorEditor> (this)] (int r)
         {
             if (safe == nullptr || r == 0) return;
