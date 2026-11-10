@@ -50,6 +50,9 @@ buffer → voie claire unitaire ; voie saturée : passe-haut C2, JFET J201, rés
 L'EQ agit sur le mélange, clair compris, comme sur la pédale d'origine. Courbe des potards d'EQ continue, même pente de
 part et d'autre de midi (aucune cassure), qui s'accélère vers les butées.
 
+Barre de presets et ligne d'état dans la même pastille : le preset en cours au repos ; dès qu'un réglage bouge, la valeur
+en direct prend sa place, puis le preset revient en fondu 2,5 s après le dernier mouvement.
+
 Clic droit (menu au design d'Octopus, ouvert à l'endroit du clic) : taille de la fenêtre (60 / 75 / 100 %, taille par défaut des nouvelles fenêtres), presets d'usine et
 utilisateur (9 emplacements), **Cab sim** (IR de baffle basse 4x10 intégrée ou fichier WAV / AIFF de l'utilisateur ;
 désactivé par défaut, Darkbass étant placé avant Ampire / Impulse), réglages des footswitchs, MIDI Learn.
@@ -78,4 +81,4 @@ vidée à 60 Hz sur le thread de messages), pointeurs de paramètres mis en cach
 - `tools/toggle_photo.py`, `tools/photo_controls.py` : inverseurs, potards, footswitchs, LED et jacks d'après les photos
   de l'utilisateur (`assets/kit/`).
 - `tools/render/` : compile le plugin sous Linux, tests audio (niveaux, presets, alignement, MIDI) et captures PNG.
-- `docs/` : notice en français (`Darkbass_Notice_FR_v1.1.3.pdf`).
+- `docs/` : notice en français (`Darkbass_Notice_FR_v1.1.4.pdf`).

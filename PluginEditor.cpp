@@ -8,7 +8,6 @@ using namespace juce;
 namespace
 {
     // repere layout::frameW x frameH (fond 2x), positions generees par tools/make_art.py dans Layout.h
-    const Rectangle<float> statusRect = layout::statusRect;
     const Rectangle<float> presetRect = layout::presetRect;
 
     const float rotStart = MathConstants<float>::pi * (7.0f / 6.0f);    // -150 degres
@@ -426,7 +425,7 @@ void DarkbassAudioProcessorEditor::timerCallback()
     }
     else if (lt >= 0)
     {
-        learnLine = "MIDI LEARN: move a control for " + String (DarkbassAudioProcessor::learnDef (lt).name);
+        learnLine = String (CharPointer_UTF8 ("MIDI LEARN \xc2\xb7 ")) + String (DarkbassAudioProcessor::learnDef (lt).name);
         learnLineUntil = now + 200.0;
         statusUntil = jmax (statusUntil, now + 200.0);
     }
@@ -435,7 +434,8 @@ void DarkbassAudioProcessorEditor::timerCallback()
     if (midiFlash > 0) --midiFlash;
 
     const float target = now < statusUntil ? 1.0f : 0.0f;
-    statusAlpha += (target - statusAlpha) * (target > statusAlpha ? 0.45f : 0.12f);
+    // barre de presets et ligne d'etat dans la meme pastille : fondu croise ~120 ms a l'apparition, ~300 ms au retour
+    statusAlpha += (target - statusAlpha) * (target > statusAlpha ? 0.62f : 0.28f);
     if (statusAlpha < 0.005f) statusAlpha = 0.0f;
     if (statusAlpha > 0.995f) statusAlpha = 1.0f;
 
@@ -465,7 +465,7 @@ void DarkbassAudioProcessorEditor::timerCallback()
     if (std::abs (statusAlpha - drawnStatus) > 0.003f || (statusAlpha > 0.0f && textChanged))
     {
         drawnStatus = statusAlpha;
-        askRepaint (scaled (statusRect.expanded (4.0f)));
+        askRepaint (scaled (presetRect.expanded (3.0f)));
     }
     if (pl != lastPreset || hoverZone != drawnHover || midiFlash > 0)
     {
@@ -495,39 +495,40 @@ void DarkbassAudioProcessorEditor::drawLed (Graphics& g, int which)
     g.fillEllipse (c.x - hr, c.y - hr, hr * 2.0f, hr * 2.0f);
 }
 
+// Une seule pastille : au repos la barre de presets ; des qu'un reglage bouge, la ligne d'etat prend sa place
+// (fondu croise, meme police, meme taille), puis s'efface ~2,5 s apres le dernier mouvement.
 void DarkbassAudioProcessorEditor::drawStatus (Graphics& g)
 {
     const float a = statusAlpha;
     if (a <= 0.0f) return;
-    g.setColour (Colour (0xff0a0a0c).withAlpha (a));
-    g.fillRoundedRectangle (statusRect, 10.0f);
-    g.setColour (accent.withAlpha (0.55f * a));
-    g.drawRoundedRectangle (statusRect.reduced (0.75f), 10.0f, 1.4f);
-    g.setFont (Font (FontOptions (labelFace).withHeight (layout::statusFont)));
+    g.setFont (Font (FontOptions (labelFace).withHeight (layout::presetFont)));
     g.setColour (inkWhite.withAlpha (a));
-    g.drawFittedText (lastLine1.toUpperCase(), statusRect.reduced (12.0f, 0.0f).toNearestInt(), Justification::centred, 1, 0.75f);
+    g.drawFittedText (lastLine1.toUpperCase(), presetRect.reduced (16.0f, 0.0f).toNearestInt(), Justification::centred, 1, 0.6f);
 }
 
 void DarkbassAudioProcessorEditor::drawPresetBar (Graphics& g)
 {
     const auto r = presetRect;
+    const float pa = 1.0f - statusAlpha;                       // contenu de la barre de presets (fondu croise)
+    const int hz = statusAlpha > 0.05f ? 0 : hoverZone;        // pas de survol tant que la ligne d'etat est affichee
     g.setColour (Colour (0xff0a0a0c).withAlpha (0.86f));
     g.fillRoundedRectangle (r, r.getHeight() * 0.5f);
-    g.setColour (accent.withAlpha (hoverZone != 0 ? 0.80f : 0.50f));
+    g.setColour (accent.withAlpha (hz != 0 ? 0.80f : 0.50f));
     g.drawRoundedRectangle (r.reduced (0.6f), r.getHeight() * 0.5f, 1.2f);
+    if (pa <= 0.0f) return;
     const float aw = 36.0f;
     auto arrow = [&] (Rectangle<float> ar, bool left, bool hot)
     {
-        Path p; const auto c = ar.getCentre(); const float s = 6.5f;
-        if (left) p.addTriangle (c.x + s * 0.6f, c.y - s, c.x + s * 0.6f, c.y + s, c.x - s * 0.8f, c.y);
-        else      p.addTriangle (c.x - s * 0.6f, c.y - s, c.x - s * 0.6f, c.y + s, c.x + s * 0.8f, c.y);
-        g.setColour (inkWhite.withAlpha (hot ? 1.0f : 0.62f));
+        Path p; const auto c = ar.getCentre(); const float sz = 6.5f;
+        if (left) p.addTriangle (c.x + sz * 0.6f, c.y - sz, c.x + sz * 0.6f, c.y + sz, c.x - sz * 0.8f, c.y);
+        else      p.addTriangle (c.x - sz * 0.6f, c.y - sz, c.x - sz * 0.6f, c.y + sz, c.x + sz * 0.8f, c.y);
+        g.setColour (inkWhite.withAlpha ((hot ? 1.0f : 0.62f) * pa));
         g.fillPath (p);
     };
-    arrow (r.withWidth (aw), true, hoverZone == 1);
-    arrow (r.withTrimmedLeft (r.getWidth() - aw), false, hoverZone == 3);
+    arrow (r.withWidth (aw), true, hz == 1);
+    arrow (r.withTrimmedLeft (r.getWidth() - aw), false, hz == 3);
     g.setFont (Font (FontOptions (labelFace).withHeight (layout::presetFont)));
-    g.setColour ((midiFlash > 0 ? Colour (0xff8fb8ff) : inkWhite).withAlpha (hoverZone == 2 ? 1.0f : 0.90f));
+    g.setColour ((midiFlash > 0 ? Colour (0xff8fb8ff) : inkWhite).withAlpha ((hz == 2 ? 1.0f : 0.90f) * pa));
     g.drawFittedText (lastPreset, r.reduced (aw, 0.0f).toNearestInt(), Justification::centred, 1, 0.7f);
 }
 
@@ -545,8 +546,8 @@ void DarkbassAudioProcessorEditor::paint (Graphics& g)
     g.setImageResamplingQuality (Graphics::mediumResamplingQuality);
     drawLed (g, 0);
     drawLed (g, 1);
-    drawStatus (g);
     drawPresetBar (g);
+    drawStatus (g);
 }
 
 //==============================================================================
@@ -571,7 +572,14 @@ void DarkbassAudioProcessorEditor::mouseDown (const MouseEvent& e)
 {
     if (e.mods.isPopupMenu()) { showContextMenu(); return; }
     const float s = (float) getHeight() / (float) baseH;
-    switch (presetZoneAt (e.position / s))
+    const int zone = presetZoneAt (e.position / s);
+    if (zone != 0 && statusAlpha > 0.05f)
+    {
+        // la ligne d'etat ne bloque pas les clics : un clic fait revenir la barre de presets
+        statusUntil = 0.0; learnLineUntil = 0.0;
+        return;
+    }
+    switch (zone)
     {
         case 1: stepPreset (-1); break;
         case 2: showPresetMenu(); break;
@@ -613,7 +621,6 @@ void DarkbassAudioProcessorEditor::showPresetMenu()
             if      (r >= 100 && r < 200) pr.applyFactoryPreset (r - 100);
             else if (r > 200 && r < 300)  pr.loadUserPreset (r - 200);
             else if (r > 300 && r < 400)  pr.saveUserPreset (r - 300);
-            safe->showStatus();
         });
 }
 
@@ -629,7 +636,7 @@ void DarkbassAudioProcessorEditor::chooseCabIR()
             if (f.existsAsFile() && safe->proc.loadCabIR (f))
             {
                 safe->proc.setParamValue ("cab", 1.0f);
-                safe->learnLine = "cab IR  " + f.getFileNameWithoutExtension();
+                safe->learnLine = "IR  " + f.getFileNameWithoutExtension();
                 safe->learnLineUntil = Time::getMillisecondCounterHiRes() + 2000.0;
                 safe->statusUntil = safe->learnLineUntil;
             }
@@ -750,6 +757,5 @@ void DarkbassAudioProcessorEditor::showContextMenu (int learnIdx)
             else if (r > 200 && r < 300)  pr.loadUserPreset (r - 200);
             else if (r > 300 && r < 400)  pr.saveUserPreset (r - 300);
             else if (r >= 1000) { ed.handleMidiMenu (r); return; }
-            ed.showStatus();
         });
 }

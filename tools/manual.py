@@ -18,7 +18,7 @@ from reportlab.pdfbase.ttfonts import TTFont
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SHOTS = sys.argv[1] if len(sys.argv) > 2 else None
 OUT = sys.argv[-1]
-VERSION = "1.1.3"
+VERSION = "1.1.4"
 import tempfile
 TMP = tempfile.mkdtemp()
 FONTS = os.path.join(ROOT, "assets", "fonts")
@@ -47,9 +47,9 @@ if SHOTS:
     src = Image.open(os.path.join(SHOTS, "darkbass_100.png")).convert("RGB")
     k = src.height / FH
     marks = [(i + 1, *KP[i]) for i in range(8)] + [(9 + i, *TP[i]) for i in range(4)] + \
-            [(13, *LEDL), (14, *LEDR), (15, *FSL), (16, *FSR), (17, SR[0] + SR[2] / 2, SR[1] + SR[3] / 2), (18, PRR[0] + PRR[2] / 2, PRR[1] + PRR[3] / 2), (19, PX0 + PW + 22, JACK_Y + 78), (20, PX0 - 22, JACK_Y + 78)]
+            [(13, *LEDL), (14, *LEDR), (15, *FSL), (16, *FSR), (17, PRR[0] + PRR[2] / 2, PRR[1] + PRR[3] / 2), (18, PX0 + PW + 22, JACK_Y + 78), (19, PX0 - 22, JACK_Y + 78)]
     off = {**{i: (-82, 0) for i in range(1, 9)}, **{i: (-62, 0) for i in range(9, 13)}, 13: (-48, 0), 14: (-48, 0), 15: (-88, 0), 16: (88, 0),
-           17: (-262, -4), 18: (-218, 0), 19: (0, 0), 20: (0, 0)}
+           17: (-218, 0), 18: (0, 0), 19: (0, 0)}
     ann = src.copy(); dr = ImageDraw.Draw(ann)
     fnt = ImageFont.truetype(os.path.join(FONTS, "Poppins-Bold.ttf"), int(24 * k))
     for n, x, y in marks:
@@ -74,7 +74,10 @@ if SHOTS:
     tog_img = os.path.join(TMP, NAMES[1]); tog.save(tog_img)
     lb = (LEDL[0] - 110, LEDL[1] - 40, LEDL[0] + 110, FSL[1] + 70)
     led_img = strip([crop_u("darkbass_bypass.png", lb), crop_u("darkbass_100.png", lb)], NAMES[2])
-    bar = crop_u("darkbass_status.png", (SR[0] - 16, SR[1] - 13, SR[0] + SR[2] + 16, PRR[1] + PRR[3] + 10))
+    # meme pastille : barre de presets au repos, ligne d'etat pendant les reglages
+    pb = (PRR[0] - 14, PRR[1] - 10, PRR[0] + PRR[2] + 14, PRR[1] + PRR[3] + 10)
+    a, b = crop_u("darkbass_100.png", pb), crop_u("darkbass_status.png", pb)
+    bar = Image.new("RGB", (a.width, a.height * 2 + 8), (255, 255, 255)); bar.paste(a, (0, 0)); bar.paste(b, (0, a.height + 8))
     bar_img = os.path.join(TMP, NAMES[3]); bar.save(bar_img)
 
     # ---------- couverture : pedale detouree (boitier + jacks), reflet au sol, halo bleu tres doux ----------
@@ -194,8 +197,7 @@ T = {
      ("GRUNT", "Graves dans l'écrêtage : boost / cut / flat (haut / milieu / bas)"), ("LO FREQ", "Fréquence de LO MIDS : 500 Hz / 1 kHz / 250 Hz"),
      ("HI FREQ", "Fréquence de HI MIDS : 1,5 kHz / 3 kHz / 750 Hz"), ("ATTACK", "Signal et aigus dans l'écrêtage : flat / boost / cut"),
      ("LED BYPASS", "Pédale active"), ("LED DRIVE", "Saturation active"), ("Footswitch BYPASS", "Toute la pédale on / off"),
-     ("Footswitch DRIVE", "Voie saturée on / off"), ("Ligne d'état", "Valeur en direct de la commande manipulée (2,5 s par-dessus le nom)"),
-     ("Barre de presets", "Flèches : preset d'usine précédent / suivant ; centre : menu des presets"), ("IN", "Entrée (côté droit)"), ("OUT", "Sortie (côté gauche)")],
+     ("Footswitch DRIVE", "Voie saturée on / off"), ("Barre de presets / ligne d'état", "Preset en cours (flèches : précédent / suivant ; centre : menu) ; pendant un réglage, valeur en direct"), ("IN", "Entrée (côté droit)"), ("OUT", "Sortie (côté gauche)")],
  ctl_t="4. Les commandes",
  ctl=[("MASTER", "Volume de sortie de toute la pédale. Midi = gain unitaire (0 dB), tout à gauche = silence, tout à droite = +12 dB. "
                  "Permet d'égaliser avec le niveau en bypass."),
@@ -240,7 +242,7 @@ T = {
  midi_t="6. MIDI et pédales d'expression",
  midi_txt=["Aucun CC n'est assigné par défaut. Clic droit sur n'importe quelle commande (potard, inverseur, footswitch) &gt; "
            "<b>MIDI Learn</b>, puis bouger la pédale ou appuyer sur le switch du contrôleur : le premier CC reçu est assigné "
-           "(affiché 2 s dans la ligne d'état). Les assignations sont sauvegardées avec le projet. Toutes les commandes sont "
+           "(affiché 2 s à la place du nom du preset). Les assignations sont sauvegardées avec le projet. Toutes les commandes sont "
            "aussi automatisables dans le DAW."],
  midi_hdr=["Commande", "Fonctionnement"],
  midi=[["Potards", "Rampe linéaire entre deux CC, puis lissage à 2 pôles : aucun escalier avec une pédale d'expression. "
@@ -255,10 +257,12 @@ T = {
       "réduire en dessous. Clic droit &gt; <b>Plugin size</b> : 60 %, 75 %, 100 %, et <b>Default size (new windows)</b> pour "
       "choisir la taille de toutes les nouvelles fenêtres de Darkbass. Le menu clic droit s'ouvre toujours à l'endroit du clic, "
       "sur une commande (MIDI Learn de cette commande) comme sur la façade.",
-      "La <b>ligne d'état</b> affiche la valeur en direct de la commande manipulée (en %, ou la position de l'inverseur), et les "
-      "messages du MIDI Learn. La <b>barre de presets</b> affiche le preset en cours : flèches pour précédent / suivant, centre "
-      "pour le menu complet (presets d'usine, 9 emplacements utilisateur à charger et sauvegarder)."],
- bar_cap="Ligne d'état (en haut) et barre de presets.",
+      "La <b>barre de presets</b> affiche le preset en cours : flèches pour précédent / suivant, centre pour le menu complet "
+      "(presets d'usine, 9 emplacements utilisateur à charger et sauvegarder). Dès qu'un réglage bouge (souris, automation, MIDI, "
+      "footswitch), la <b>ligne d'état</b> prend sa place dans la même pastille avec la valeur en direct (en %, ou la position "
+      "de l'inverseur) et les messages du MIDI Learn ; 2,5 s après le dernier mouvement, elle s'efface en fondu et le preset "
+      "revient. Un clic sur la pastille pendant un réglage fait revenir tout de suite la barre de presets."],
+ bar_cap="La même pastille : barre de presets au repos (en haut), ligne d'état pendant un réglage (en bas).",
  cab_t="Simulation de baffle",
  cab="Clic droit &gt; <b>Cab sim</b> : on / off, <b>Built-in IR</b> (baffle basse 4x10 intégré) ou <b>Load IR file...</b> "
      "(WAV / AIFF, normalisé, le chemin est sauvegardé avec le projet). Le volume est compensé : activer la simulation ne "
