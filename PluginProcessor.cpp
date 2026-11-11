@@ -121,7 +121,9 @@ AudioProcessorValueTreeState::ParameterLayout DarkbassAudioProcessor::createLayo
     for (int i = 0; i < numToggles; ++i)
         p.push_back (std::make_unique<AudioParameterChoice> (ParameterID { toggleId (i), 1 }, tname[i], toggleChoices (i), tdef[i]));
     p.push_back (std::make_unique<AudioParameterBool> (ParameterID { "cab", 1 },     "Cab Sim",           false));
-    p.push_back (std::make_unique<AudioParameterBool> (ParameterID { "active", 1 },  "Bypass Footswitch", true));
+    // 1 = pedale active (LED BYPASS allumee). Nom sans « Bypass » : Octopus (et les hotes) lisent un parametre « Bypass... »
+    // comme 1 = contourne, ce qui inversait la tuile ; l'ID « active » ne change pas (projets existants intacts).
+    p.push_back (std::make_unique<AudioParameterBool> (ParameterID { "active", 1 },  "Footswitch",        true));
     p.push_back (std::make_unique<AudioParameterBool> (ParameterID { "driveOn", 1 }, "Drive Footswitch",  d.driveOn != 0));
     p.push_back (std::make_unique<AudioParameterBool> (ParameterID { "holdMomentary", 1 }, "Hold = Momentary", true));
     p.push_back (std::make_unique<AudioParameterChoice> (ParameterID { "midiFsMode", 1 }, "MIDI Footswitch Mode",

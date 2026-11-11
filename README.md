@@ -81,4 +81,4 @@ vidée à 60 Hz sur le thread de messages), pointeurs de paramètres mis en cach
 - `tools/toggle_photo.py`, `tools/photo_controls.py` : inverseurs, potards, footswitchs, LED et jacks d'après les photos
   de l'utilisateur (`assets/kit/`).
 - `tools/render/` : compile le plugin sous Linux, tests audio (niveaux, presets, alignement, MIDI) et captures PNG.
-- `docs/` : notice en français (`Darkbass_Notice_FR_v1.1.4.pdf`).
+- `docs/` : notice en français (`Darkbass_Notice_FR_v1.1.5.pdf`).
