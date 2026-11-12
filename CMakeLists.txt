@@ -6,7 +6,7 @@ if(APPLE)
   set(CMAKE_OSX_DEPLOYMENT_TARGET "10.13" CACHE STRING "" FORCE)
 endif()
 
-project(Darkbass VERSION 1.1.5)
+project(Darkbass VERSION 1.2.0)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -39,7 +39,7 @@ juce_add_plugin(Darkbass
   FORMATS VST3
   VST3_CATEGORIES Fx Distortion
   PRODUCT_NAME "Darkbass"
-  VERSION 1.1.5
+  VERSION 1.2.0
   DESCRIPTION "Bass preamp / overdrive (B7K Ultra style) - double pedal format"
   IS_SYNTH FALSE
   NEEDS_MIDI_INPUT TRUE
@@ -50,6 +50,17 @@ juce_add_plugin(Darkbass
 
 target_sources(Darkbass PRIVATE PluginProcessor.cpp PluginEditor.cpp)
 
+
+# verrou de taille de la fenetre du DAW (jamais sous 60 %, jamais au-dela de 150 %)
+if(APPLE)
+  target_sources(Darkbass PRIVATE WindowMinSize.mm)
+  target_link_libraries(Darkbass PRIVATE "-framework Cocoa")
+else()
+  target_sources(Darkbass PRIVATE WindowMinSize.cpp)
+endif()
+if(WIN32)
+  target_link_libraries(Darkbass PRIVATE comctl32 user32)
+endif()
 if(MSVC)
   target_compile_options(Darkbass PRIVATE /utf-8)
 endif()

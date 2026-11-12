@@ -179,8 +179,8 @@ void FootSwitchArea::mouseUp (const MouseEvent& e)
 //==============================================================================
 DarkbassAudioProcessorEditor::DarkbassAudioProcessorEditor (DarkbassAudioProcessor& p)
     : AudioProcessorEditor (&p), proc (p),
-      bypassFs (*p.apvts.getParameter ("active"),  p.apvts.getRawParameterValue ("holdMomentary")),
-      driveFs  (*p.apvts.getParameter ("driveOn"), p.apvts.getRawParameterValue ("holdMomentary"))
+      bypassFs (*p.apvts.getParameter ("active"),  nullptr),
+      driveFs  (*p.apvts.getParameter ("driveOn"), nullptr)
 {
     background = ImageCache::getFromMemory (BinaryData::background_jpg, BinaryData::background_jpgSize);
     glow[0]    = ImageCache::getFromMemory (BinaryData::glow_l_png, BinaryData::glow_l_pngSize);
@@ -190,8 +190,8 @@ DarkbassAudioProcessorEditor::DarkbassAudioProcessorEditor (DarkbassAudioProcess
     const auto strip = ImageCache::getFromMemory (BinaryData::toggle_strip_png, BinaryData::toggle_strip_pngSize);
     bypassFs.reflection = driveFs.reflection = refl;
     labelFace = Typeface::createSystemTypefaceFor (BinaryData::PoppinsMedium_ttf, BinaryData::PoppinsMedium_ttfSize);
-    lnf.reg = lnf.med = labelFace;
-    lnf.bold = Typeface::createSystemTypefaceFor (BinaryData::PoppinsBold_ttf, BinaryData::PoppinsBold_ttfSize);
+    lnf.f = { labelFace, labelFace, Typeface::createSystemTypefaceFor (BinaryData::PoppinsBold_ttf, BinaryData::PoppinsBold_ttfSize) };
+    glowPc = NineHandsGlow::percent (JucePlugin_Name);
 
     // index des commandes = learnDef du processeur (0-7 potards, 8-11 inverseurs, 12 cab, 13 bypass, 14 drive)
     rightClickFwd.callback = [this] (Component* c)
@@ -245,11 +245,12 @@ DarkbassAudioProcessorEditor::DarkbassAudioProcessorEditor (DarkbassAudioProcess
     const int defaultW = roundToInt ((float) defaultH * (float) baseW / (float) baseH);
     setResizable (true, true);
     setResizeLimits (defaultW, defaultH, roundToInt ((float) maxH * baseW / baseH), maxH);
+    hostLock.setLimits (defaultW, defaultH, roundToInt ((float) maxH * baseW / baseH), maxH);
     if (auto* cons = getConstrainer()) cons->setFixedAspectRatio ((double) baseW / (double) baseH);
     setOpaque (true);
     setSize (defaultW, defaultH);
     // taille des nouvelles fenetres : celle choisie dans le menu « Default size (new windows) »
-    setScaledHeight (sizeHeight (WigaWindowSize::defaultIndex (JucePlugin_Name, numSizes)));
+    setScaledHeight (sizeHeight (NineHandsWindow::openIndex (JucePlugin_Name, proc.uiSizeIdx.load(), numSizes)));   // taille du projet, sinon taille par defaut
     rebuildCaches();
     startTimerHz (30);
 }
@@ -271,6 +272,7 @@ void DarkbassAudioProcessorEditor::setScaledHeight (int h)
 {
     h = jlimit ((int) defaultH, (int) maxH, h);
     setSize (roundToInt ((float) h * (float) baseW / (float) baseH), h);
+    hostLock.enforce();
 }
 
 Rectangle<int> DarkbassAudioProcessorEditor::scaled (Rectangle<float> r) const
@@ -344,7 +346,7 @@ void DarkbassAudioProcessorEditor::useSoftwareRenderer()
    #endif
 }
 
-void DarkbassAudioProcessorEditor::parentHierarchyChanged() { useSoftwareRenderer(); }
+void DarkbassAudioProcessorEditor::parentHierarchyChanged() { useSoftwareRenderer(); hostLock.track (*this); }
 void DarkbassAudioProcessorEditor::visibilityChanged()      { useSoftwareRenderer(); if (isShowing()) repaint(); }
 
 void DarkbassAudioProcessorEditor::askRepaint (Rectangle<int> r)
@@ -386,6 +388,13 @@ void DarkbassAudioProcessorEditor::timerCallback()
 {
     const double now = Time::getMillisecondCounterHiRes();
     if (getPeer() != lastPeer || now - lastRendererCheckMs > 1000.0) { lastRendererCheckMs = now; useSoftwareRenderer(); }
+    if (now - lastGlowReadMs > 3000.0)       // clic droit > Glow intensity : commun a toutes les fenetres (jamais dans paint)
+    {
+        lastGlowReadMs = now;
+        const int pc = NineHandsGlow::percent (JucePlugin_Name);
+        if (pc != glowPc) setGlowPercent (pc);
+    }
+    hostLock.track (*this);
 
     if (resizeSettle > 0 && --resizeSettle == 0) rebuildCaches();
     else if (resizeSettle == 0 && now - lastScaleCheckMs > 250.0)
@@ -481,7 +490,7 @@ void DarkbassAudioProcessorEditor::drawLed (Graphics& g, int which)
     if (level <= 0.003f) return;
     // facade eclairee par la LED (calque alpha precalcule : seule la lumiere ajoutee)
     const auto gr = which == 0 ? layout::glowL : layout::glowR;
-    if (glowS[which].isValid()) { g.setOpacity (level); g.drawImage (glowS[which], gr); }
+    if (glowS[which].isValid()) { g.setOpacity (level * glowAmt()); g.drawImage (glowS[which], gr); }   // halo : clic droit > Glow intensity
     // lentille allumee (photo de LED recoloree en bleu)
     const auto c = which == 0 ? layout::ledL : layout::ledR;
     const float hs = layout::ledS * 0.5f;
@@ -489,8 +498,8 @@ void DarkbassAudioProcessorEditor::drawLed (Graphics& g, int which)
     g.setOpacity (1.0f);
     // tres leger halo optique autour de la lentille
     const float hr = 22.0f;
-    ColourGradient halo (Colour (0xff5a9bff).withAlpha (0.33f * level), c.x, c.y, Colour (0xff5a9bff).withAlpha (0.0f), c.x + hr, c.y, true);
-    halo.addColour (0.4, Colour (0xff5a9bff).withAlpha (0.088f * level));
+    ColourGradient halo (Colour (0xff5a9bff).withAlpha (0.33f * level * glowAmt()), c.x, c.y, Colour (0xff5a9bff).withAlpha (0.0f), c.x + hr, c.y, true);
+    halo.addColour (0.4, Colour (0xff5a9bff).withAlpha (0.088f * level * glowAmt()));
     g.setGradientFill (halo);
     g.fillEllipse (c.x - hr, c.y - hr, hr * 2.0f, hr * 2.0f);
 }
@@ -643,19 +652,6 @@ void DarkbassAudioProcessorEditor::chooseCabIR()
         });
 }
 
-void DarkbassAudioProcessorEditor::addMidiMenu (PopupMenu& menu, int learnIdx)
-{
-    if (learnIdx < 0 || learnIdx >= DarkbassAudioProcessor::numLearn)
-        return;
-    // clic droit sur une commande : MIDI Learn de cette commande en tete du menu
-    const int cc = proc.ccMap[learnIdx].load();
-    const int lt = proc.learnTarget.load();
-    const String name = DarkbassAudioProcessor::learnDef (learnIdx).name;
-    menu.addItem (1000 + learnIdx, "MIDI Learn: " + name + " (" + (cc >= 0 ? "CC " + String (cc) : String ("none")) + ")", true, lt == learnIdx);
-    menu.addItem (1100 + learnIdx, "Clear MIDI: " + name, cc >= 0);
-    if (lt >= 0) menu.addItem (1200, "Cancel MIDI learn");
-    menu.addSeparator();
-}
 
 void DarkbassAudioProcessorEditor::handleMidiMenu (int r)
 {
@@ -666,41 +662,51 @@ void DarkbassAudioProcessorEditor::handleMidiMenu (int r)
     else if (r == 1201) { proc.learnTarget.store (-1); proc.resetMidiMap(); }
 }
 
-void DarkbassAudioProcessorEditor::showContextMenu (int learnIdx)
+void DarkbassAudioProcessorEditor::setGlowPercent (int pc)
 {
-    PopupMenu menu;
-    addMidiMenu (menu, learnIdx);
-    {
-        // Plugin size : taille de cette fenetre + taille par defaut des nouvelles fenetres
-        const char* names[numSizes] = { "60 %", "75 %", "100 %" };
-        const int def = WigaWindowSize::defaultIndex (JucePlugin_Name, numSizes);
-        PopupMenu sizes, defSizes;
-        for (int i = 0; i < numSizes; ++i)
-        {
-            sizes.addItem (1 + i, String (names[i]) + (i == def ? "  (default)" : ""), true, std::abs (getHeight() - sizeHeight (i)) <= 2);
-            defSizes.addItem (20 + i, names[i], true, i == def);
-        }
-        sizes.addSeparator();
-        sizes.addSubMenu ("Default size (new windows)", defSizes);
-        menu.addSubMenu ("Plugin size", sizes);
-    }
-    menu.addSeparator();
+    glowPc = NineHandsGlow::sanitize (pc);
+    drawnLed[0] = drawnLed[1] = -1.0f;      // le timer redessine les LED
+}
 
+PopupMenu DarkbassAudioProcessorEditor::buildContextMenu (int learnIdx)
+{
+    using namespace NineHandsMenu;
+    PopupMenu menu;
+    menu.setLookAndFeel (&lnf);
+    auto ccText = [this] (int i)
+    {
+        const int cc = proc.ccMap[i].load();
+        return cc >= 0 ? "CC " + String (cc) : String ("not assigned");
+    };
+    const int lt = proc.learnTarget.load();
+    if (learnIdx >= 0)
+    {
+        // menu d'une commande (tronc commun) : en-tete, MIDI Learn, Clear MIDI, Cancel MIDI learn
+        const int i = learnIdx;
+        const String name = DarkbassAudioProcessor::learnDef (i).name;
+        addHeader (menu, lnf.f, (learnIdx < 8 ? icoKnob : (learnIdx < 13 ? icoSwitch : icoPedal)), accent, name, "MIDI: " + ccText (learnIdx));
+        menu.addItem (1000 + learnIdx, "MIDI Learn: " + name, true, lt == learnIdx);
+        menu.addItem (1100 + learnIdx, "Clear MIDI: " + name, proc.ccMap[learnIdx].load() >= 0);
+        menu.addItem (1200, "Cancel MIDI learn", lt >= 0);
+        return menu;
+    }
+
+    // menu de la pedale (tronc commun) : presets, reglages propres, MIDI, Plugin size, Glow intensity
+    addHeader (menu, lnf.f, icoPedal, accent, "Darkbass", "Bass preamp  v" + String (JucePlugin_VersionString));
     PopupMenu factory;
     for (int i = 0; i < DarkbassAudioProcessor::getNumFactoryPresets(); ++i)
         factory.addItem (100 + i, String (i + 1) + ". " + DarkbassAudioProcessor::getFactoryPreset (i).name, true, proc.currentPreset.load() == i);
     menu.addSubMenu ("Factory presets", factory);
     PopupMenu load, save;
     for (int slot = 1; slot <= 9; ++slot)
-    {
+    {{
         const bool exists = proc.hasUserPreset (slot);
         load.addItem (200 + slot, "User " + String (slot) + (exists ? "" : "  (empty)"), exists, proc.currentPreset.load() == 100 + slot);
         save.addItem (300 + slot, "User " + String (slot) + (exists ? "  (overwrite)" : ""));
-    }
+    }}
     menu.addSubMenu ("Load user preset", load);
     menu.addSubMenu ("Save user preset", save);
     menu.addSeparator();
-
     PopupMenu cab;
     cab.addItem (60, "Cab sim on", true, proc.raw ("cab") > 0.5f);
     cab.addSeparator();
@@ -708,48 +714,52 @@ void DarkbassAudioProcessorEditor::showContextMenu (int learnIdx)
     cab.addItem (62, "Load IR file...");
     if (proc.cabIRPath.isNotEmpty()) cab.addItem (63, "Current: " + proc.cabIRName(), false, true);
     menu.addSubMenu ("Cab sim", cab);
-
-    PopupMenu settings;
-    settings.addItem (40, "Hold footswitch = momentary", true, proc.raw ("holdMomentary") > 0.5f);
-    settings.addSeparator();
-    settings.addItem (41, "MIDI footswitches latching (127 = on / 0 = off)", true, proc.raw ("midiFsMode") < 0.5f);
-    settings.addItem (42, "MIDI footswitches momentary (toggle each press)", true, proc.raw ("midiFsMode") > 0.5f);
-    menu.addSubMenu ("Settings", settings);
+    menu.addSeparator();
 
     PopupMenu midi;
+    midi.addSectionHeader ("MIDI Learn");
     for (int i = 0; i < DarkbassAudioProcessor::numLearn; ++i)
-    {
-        const int cc = proc.ccMap[i].load();
-        midi.addItem (1000 + i, "Learn: " + String (DarkbassAudioProcessor::learnDef (i).name)
-                                 + " (" + (cc >= 0 ? "CC " + String (cc) : String ("none")) + ")",
-                      true, proc.learnTarget.load() == i);
-    }
+        midi.addItem (1000 + i, "Learn: " + String (DarkbassAudioProcessor::learnDef (i).name) + "  (" + ccText (i) + ")", true, lt == i);
     midi.addSeparator();
-    if (proc.learnTarget.load() >= 0) midi.addItem (1200, "Cancel MIDI learn");
+    midi.addItem (1200, "Cancel MIDI learn", lt >= 0);
     midi.addItem (1201, "Clear all MIDI assignments");
     midi.addSeparator();
-    midi.addItem (910, "Switches: CC 86-127 up / 43-85 middle / 0-42 down", false);
-    midi.addItem (913, "CC n+32 = fine (14-bit) for knobs on CC 0-31", false);
-    midi.addItem (914, "Program Change 1-10  Factory presets", false);
-    menu.addSubMenu ("MIDI map", midi);
+    NineHandsWindow::addMidiFootswitchMode (midi, proc.raw ("midiFsMode") < 0.5f);
+    midi.addSeparator();
+    NineHandsWindow::addProgramChangeInfo (midi);
+    menu.addSubMenu ("MIDI", midi);
     menu.addSeparator();
-    menu.addItem (999, "Darkbass v" + String (JucePlugin_VersionString) + " - NINE HANDS | DSP", false);
 
-    menu.setLookAndFeel (&lnf);
-    menu.showMenuAsync (PopupMenu::Options().withMousePosition(),    // menu clic droit : toujours la ou l on clique
+    const char* names[numSizes] = { "60 %", "75 %", "100 %" };
+    const int heights[numSizes] = { sizeHeight (0), sizeHeight (1), sizeHeight (2) };
+    menu.addSubMenu ("Plugin size", NineHandsWindow::sizeMenu (JucePlugin_Name, numSizes, names, heights, getHeight()));
+    menu.addSubMenu ("Glow intensity", NineHandsWindow::glowMenu (glowPc));
+    return menu;
+}
+
+void DarkbassAudioProcessorEditor::showContextMenu (int learnIdx)
+{
+    auto menu = buildContextMenu (learnIdx);
+    menu.showMenuAsync (PopupMenu::Options().withMousePosition(),       // menu clic droit : toujours la ou l'on clique
         [safe = Component::SafePointer<DarkbassAudioProcessorEditor> (this)] (int r)
         {
             if (safe == nullptr || r == 0) return;
-            auto& ed = *safe; auto& pr = ed.proc;
-            if      (r >= 1 && r < 1 + numSizes) ed.setScaledHeight (ed.sizeHeight (r - 1));
-            else if (r >= 20 && r < 20 + numSizes)
+            auto& ed = *safe;
+            auto& pr = ed.proc;
+            int inst = pr.uiSizeIdx.load();
+            const int sz = NineHandsWindow::handleSize (r, JucePlugin_Name, numSizes, inst);
+            if (sz >= 0) { pr.uiSizeIdx = inst; ed.setScaledHeight (ed.sizeHeight (sz)); return; }
+            if (const int pc = NineHandsWindow::handleGlow (r, JucePlugin_Name))
             {
-                WigaWindowSize::setDefaultIndex (JucePlugin_Name, r - 20);
-                ed.setScaledHeight (ed.sizeHeight (r - 20));
+                ed.setGlowPercent (pc);
+                ed.learnLine = "Glow  " + String (pc) + " %";        // ligne d'etat, brievement
+                ed.learnLineUntil = Time::getMillisecondCounterHiRes() + 1500.0;
+                ed.statusUntil = jmax (ed.statusUntil, ed.learnLineUntil);
+                return;
             }
-            else if (r == 40) pr.setParamValue ("holdMomentary", pr.raw ("holdMomentary") > 0.5f ? 0.0f : 1.0f);
-            else if (r == 41) pr.setParamValue ("midiFsMode", 0.0f);
-            else if (r == 42) pr.setParamValue ("midiFsMode", 1.0f);
+            if (false) {}
+            else if (r == NineHandsWindow::idLatch)     pr.setParamValue ("midiFsMode", 0.0f);
+            else if (r == NineHandsWindow::idMomentary) pr.setParamValue ("midiFsMode", 1.0f);
             else if (r == 60) pr.setParamValue ("cab", pr.raw ("cab") > 0.5f ? 0.0f : 1.0f);
             else if (r == 61) pr.useBuiltInCabIR();
             else if (r == 62) { ed.chooseCabIR(); return; }
@@ -757,5 +767,6 @@ void DarkbassAudioProcessorEditor::showContextMenu (int learnIdx)
             else if (r > 200 && r < 300)  pr.loadUserPreset (r - 200);
             else if (r > 300 && r < 400)  pr.saveUserPreset (r - 300);
             else if (r >= 1000) { ed.handleMidiMenu (r); return; }
+            
         });
 }

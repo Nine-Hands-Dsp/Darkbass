@@ -4,6 +4,7 @@
 #include <juce_gui_basics/juce_gui_basics.h>
 #include "Layout.h"
 #include "NineHandsMenu.h"
+#include "NineHandsWindow.h"
 
 //==============================================================================
 // Potards (photo fournie par l'utilisateur, dans le fond : reflets fixes) ; seul le repere blanc peint tourne.
@@ -105,7 +106,10 @@ private:
     void visibilityChanged() override;
     void askRepaint (juce::Rectangle<int> r);
     void showContextMenu (int learnIdx = -1);
-    void addMidiMenu (juce::PopupMenu& menu, int learnIdx);
+public:
+    juce::PopupMenu buildContextMenu (int learnIdx = -1);   // menu clic droit (aussi pour l'outil de controle des menus)
+    void setGlowPercent (int pc);                            // clic droit > Glow intensity
+private:
     void handleMidiMenu (int r);
     void showPresetMenu();
     void stepPreset (int delta);
@@ -121,6 +125,7 @@ private:
 
     DarkbassAudioProcessor& proc;
     DarkKnobLookAndFeel lnf;
+    NineHandsWindow::HostLock hostLock;    // fenetre du DAW : jamais sous 60 %, jamais au-dela de 150 %
     RightClickForwarder rightClickFwd;
     std::unique_ptr<juce::FileChooser> chooser;
 
@@ -138,6 +143,9 @@ private:
     FootSwitchArea bypassFs, driveFs;
 
     float ledLevel[2] { 0.0f, 0.0f }, drawnLed[2] { -1.0f, -1.0f };
+    int glowPc = 100;                      // clic droit > Glow intensity : halo des LED (25 a 100 %, settings.xml)
+    double lastGlowReadMs = 0.0;
+    float glowAmt() const { return (float) glowPc / 100.0f; }
     int lastChanged = -1;
     float statusAlpha = 0.0f, drawnStatus = -1.0f;
     double statusUntil = 0.0;
